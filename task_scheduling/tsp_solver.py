@@ -159,14 +159,14 @@ def subtour_calculate(n, edges):
 
 def main():
     import matplotlib.pyplot as plt
-    import utils
+    import task_scheduling.utils as tsu
 
-    nodes = utils.generate_nodes()
-    distances = utils.calculate_distances(nodes)
+    nodes = tsu.generate_nodes()
+    distances = tsu.calculate_distances(nodes)
 
-    solution, cost_total, _ = utils.solve_problem(tsp_problem, distances)
+    solution, cost_total, _ = tsu.solve_problem(tsp_problem, distances)
 
-    fig, ax = utils.plot_problem(nodes, solution, cost_total)
+    fig, ax = tsu.plot_problem(nodes, solution, cost_total)
     plt.show()
 
 if __name__ == '__main__':
