@@ -204,7 +204,7 @@ def op_problem(cost, profit, cost_max, idx_start=None, idx_finish=None, **kwargs
     # print(sum(cost[s[0], s[1]] for s in selected))
 
     route = []
-    next_city = 0
+    next_city = idx_start
 
     while len(selected) > 0:
         for i in range(len(selected)):
@@ -221,7 +221,7 @@ def op_problem(cost, profit, cost_max, idx_start=None, idx_finish=None, **kwargs
 
 def main():
     import time
-    RANDOM = False
+    RANDOM = True
     if RANDOM:
         # generate random problem
         n = 10
@@ -256,7 +256,7 @@ def main():
     st = time.time()
 
     max_cost = distances[0, -1]
-    max_cost = 5
+    max_cost = 340
     print('Max Cost: %s' % max_cost)
 
     tsp_route, total_cost, model = op_problem(distances, profits, max_cost)
