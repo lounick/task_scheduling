@@ -47,7 +47,7 @@ import numpy as np
 from gurobipy import *
 
 
-def mtsp_problem(cost, salesmen, min_cities=None, max_cities=None):
+def mtsp_problem(cost, salesmen, min_cities=None, max_cities=None, **kwargs):
     """
     Multiple traveling salesmen MILP solver using the Gurobi MILP optimiser.
 

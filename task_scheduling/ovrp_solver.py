@@ -47,7 +47,7 @@ import numpy as np
 from gurobipy import *
 
 
-def ovrp_problem(cost, start=None, finish=None):
+def ovrp_problem(cost, start=None, finish=None, **kwargs):
     """
     Open vehicle routing problem solver for a single vehicle using the Gurobi MILP optimiser.
 

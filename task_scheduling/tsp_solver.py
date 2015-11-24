@@ -48,7 +48,7 @@ import gurobipy
 np.set_printoptions(precision=3, suppress=True)
 
 
-def tsp_problem(cost):
+def tsp_problem(cost, **kwargs):
     """Uses Gurobi solver with sub-tour optimization to generate the best tour given the distances (recommended)
 
     :param cost:

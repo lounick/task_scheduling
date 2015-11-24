@@ -47,7 +47,7 @@ import numpy as np
 from gurobipy import *
 
 
-def mmtsp_problem(cost, num_depots, min_cities=None, max_cities=None):
+def mmtsp_problem(cost, num_depots, min_cities=None, max_cities=None, **kwargs):
     """
     Multi-depot multiple traveling salesmen MILP solver for multi-robot task scheduling using the Gurobi MILP optimiser.
     Points (in the cost matrix) should be ordered in a specific order. The first point is the extraction point for the

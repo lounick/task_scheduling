@@ -53,9 +53,26 @@ def subtourelim(model, where):
         selected = []
         cities = []
         n = model._n
+        start = model._start
+        finish = model._finish
         for i in range(n):
             sol = model.cbGetSolution([model._vars[i,j] for j in range(n)])
             selected += [(i, j) for j in range(n) if sol[j] > 0.5]
+
+        route = []
+
+        next_city = start
+        finished = False
+        while not finished:
+            for j in range(len(selected)):
+                if selected[j][0] == next_city:
+                    route.append(next_city)
+                    next_city = selected[j][1]
+                    break
+            if ((next_city == finish or next_city in route) or (j == len(selected)-1 and next_city not in (selected[k][0] for k in range(len(selected))))):
+                route.append(next_city)
+                finished = True
+
 
         for i in range(len(selected)):
             if selected[i][0] not in cities:
@@ -63,14 +80,14 @@ def subtourelim(model, where):
             if selected[i][1] not in cities:
                 cities.append(selected[i][1])
 
-        if len(selected) < len(cities) - 1:
+        if len(route) != len(cities):
             expr = 0
             for edge in selected:
                 expr += model._vars[edge[0], edge[1]]
-            model.cbLazy(expr == len(cities) - 1)
+            model.cbLazy(expr == len(cities))
 
 
-def ccovrp_problem(cost, max_cost, start=None, finish=None):
+def ccovrp_problem(cost, max_cost, start=None, finish=None, **kwargs):
     """
     Cost constrained open vehicle routing problem solver for a single vehicle using the Gurobi MILP optimiser.
 
@@ -104,38 +121,108 @@ def ccovrp_problem(cost, max_cost, start=None, finish=None):
         e_vars[i, i].ub = 0
     m.update()
 
-    m.setObjective(quicksum(e_vars[i, j] for i in range(n) for j in range(n)), GRB.MAXIMIZE)
+    u_vars = {}
+    for i in range(n):
+        u_vars[i] = m.addVar(vtype=GRB.INTEGER, name='u'+str(i))
+    m.update()
 
-    m.addConstr(quicksum(e_vars[i, j]*cost[i, j] for i in range(n) for j in range(n)) <= max_cost)
+    m.setObjective(quicksum(e_vars[i, j] for i in range(n) for j in range(n)), GRB.MAXIMIZE)
+    m.update()
+
+    m.addConstr(quicksum(e_vars[i, j]*cost[i, j] for i in range(n) for j in range(n)) <= max_cost, "max_energy")
+    m.update()
 
     # None exits the finish point
-    m.addConstr(quicksum(e_vars[finish, j] for j in range(n)) == 0)
+    m.addConstr(quicksum(e_vars[finish, j] for j in range(n)) == 0, "finish_out")
+    m.update()
 
     # Always one enters the finish point
-    m.addConstr(quicksum(e_vars[j, finish] for j in range(n)) == 1)
+    m.addConstr(quicksum(e_vars[j, finish] for j in range(n)) == 1, "finish_in")
+    m.update()
 
     # None enters the starting point
-    m.addConstr(quicksum(e_vars[j, start] for j in range(n)) == 0)
+    m.addConstr(quicksum(e_vars[j, start] for j in range(n)) == 0, "start_in")
+    m.update()
 
     # Always one must exit the starting point
-    m.addConstr(quicksum(e_vars[start, j] for j in range(n)) == 1)
+    m.addConstr(quicksum(e_vars[start, j] for j in range(n)) == 1, "start_out")
+    m.update()
 
     # For all other points one may or may not enter or exit
     for i in range(n):
         if i != finish and i != start:
-            m.addConstr(quicksum(e_vars[i, j] for j in range(n)) <= 1)
+            m.addConstr(quicksum(e_vars[i, j] for j in range(n)) <= 1, "target_"+str(i)+"_out")
+    m.update()
 
     for i in range(n):
         if i != start:
-            m.addConstr(quicksum(e_vars[j, i] for j in range(n)) <= 1)
+            m.addConstr(quicksum(e_vars[j, i] for j in range(n)) <= 1, "target_"+str(i)+"_in")
+    m.update()
+
+    # Sub-tour elimination constraint
+    for i in range(n):
+        for j in range(n):
+            if i != j:
+                m.addConstr(u_vars[i] - u_vars[j] + n * e_vars[i, j] <= n-1)
     m.update()
 
     # Pass variables to model callbacks
     m._n = n
     m._vars = e_vars
-    m.params.OutputFlag = 0
+    m._start = start
+    m._finish = finish
+    m.params.OutputFlag = 1
     m.params.LazyConstraints = 1
-    m.optimize(subtourelim)
+    m.optimize()
+    # status = m.status
+    # if status == GRB.status.UNBOUNDED:
+    #     print('The model cannot be solved because it is unbounded')
+    #     exit(0)
+    # if status == GRB.status.OPTIMAL:
+    #     print('The optimal objective is %g' % m.objVal)
+    #     exit(0)
+    # if status != GRB.status.INF_OR_UNBD and status != GRB.status.INFEASIBLE:
+    #     print('Optimization was stopped with status %d' % status)
+    #     exit(0)
+    #
+    # # do IIS
+    # print('The model is infeasible; computing IIS')
+    # m.computeIIS()
+    # print('\nThe following constraint(s) cannot be satisfied:')
+    # for c in m.getConstrs():
+    #     if c.IISConstr:
+    #         print('%s' % c.constrName)
+    # status = m.status
+    # if status == GRB.UNBOUNDED:
+    #     print('The model cannot be solved because it is unbounded')
+    #     exit(0)
+    # if status == GRB.OPTIMAL:
+    #     print('The optimal objective is %g' % m.objVal)
+    #     exit(0)
+    # if status != GRB.INF_OR_UNBD and status != GRB.INFEASIBLE:
+    #     print('Optimization was stopped with status %d' % status)
+    #     exit(0)
+    #
+    # # Relax the constraints to make the model feasible
+    # print('The model is infeasible; relaxing the constraints')
+    # orignumvars = m.NumVars
+    # m.feasRelaxS(0, False, False, True)
+    # m.optimize()
+    # status = m.status
+    # if status in (GRB.INF_OR_UNBD, GRB.INFEASIBLE, GRB.UNBOUNDED):
+    #     print('The relaxed model cannot be solved \
+    #            because it is infeasible or unbounded')
+    #     exit(1)
+    #
+    # if status != GRB.OPTIMAL:
+    #     print('Optimization was stopped with status %d' % status)
+    #     exit(1)
+    #
+    # print('\nSlack values:')
+    # slacks = m.getVars()[orignumvars:]
+    # for sv in slacks:
+    #     if sv.X > 1e-6:
+    #         print('%s = %g' % (sv.VarName, sv.X))
 
     solution = m.getAttr('X', e_vars)
     selected = [(i, j) for i in range(n) for j in range(n) if solution[i, j] > 0.5]
@@ -169,6 +256,7 @@ def main():
         points[1, :] = [1, 1]
         points[2, :] = [1, 10]
         points[3, :] = [0, 2]
+        # points[4, :] = [1, 2]
         print(points)
 
     # standard cost
@@ -179,14 +267,19 @@ def main():
             distances[k, p] = np.linalg.norm(points[k, :] - points[p, :])
 
     # Divide distances by maximum speed. To get time approximation.
-    distances = distances / 0.8
+    # distances = distances / 0.8
 
     print(distances)
 
     # solve using the Gurobi solver
     st = time.time()
-    tsp_route, total_cost, model = ccovrp_problem(distances, 10)
+    try:
+        tsp_route, total_cost, model = ccovrp_problem(distances, 12)
+    except:
+        pass
     dt = time.time() - st
+
+
 
     print('Gurobi Solver')
     print('Time to Solve: %.2f secs' % dt)
