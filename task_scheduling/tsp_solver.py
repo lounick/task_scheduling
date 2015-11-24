@@ -1,41 +1,33 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-# Software License Agreement (BSD License)
+# Copyright (c) 2015, lounick and decabyte
+# All rights reserved.
 #
-#  Copyright (c) 2014, Ocean Systems Laboratory, Heriot-Watt University, UK.
-#  All rights reserved.
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
 #
-#  Redistribution and use in source and binary forms, with or without
-#  modification, are permitted provided that the following conditions
-#  are met:
+# * Redistributions of source code must retain the above copyright notice, this
+#   list of conditions and the following disclaimer.
 #
-#   * Redistributions of source code must retain the above copyright
-#     notice, this list of conditions and the following disclaimer.
-#   * Redistributions in binary form must reproduce the above
-#     copyright notice, this list of conditions and the following
-#     disclaimer in the documentation and/or other materials provided
-#     with the distribution.
-#   * Neither the name of the Heriot-Watt University nor the names of
-#     its contributors may be used to endorse or promote products
-#     derived from this software without specific prior written
-#     permission.
+# * Redistributions in binary form must reproduce the above copyright notice,
+#   this list of conditions and the following disclaimer in the documentation
+#   and/or other materials provided with the distribution.
 #
-#  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-#  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-#  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-#  FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-#  COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-#  INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-#  BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-#  LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-#  CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-#  LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-#  ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-#  POSSIBILITY OF SUCH DAMAGE.
+# * Neither the name of task_scheduling nor the names of its
+#   contributors may be used to endorse or promote products derived from
+#   this software without specific prior written permission.
 #
-#  Original authors:
-#   Nikolaos Tsiogkas, Valerio De Carolis
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+# AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+# DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+# SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+# OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 """
 Simple TSP solver
@@ -82,32 +74,30 @@ def tsp_problem(cost, **kwargs):
     m._n = n
     m._eVars = e_vars
     m._uVars = u_vars
-
     m.update()
 
     # (optionally) write problem
     #model.write("tsp.lp")
 
     # set parameters
-    m.params.OutputFlag = 0  # kwargs.get('output_flag', 0)
+    m.params.OutputFlag = kwargs.get('output_flag', 0)
     m.params.LazyConstraints = 1
 
     # optimize model
     m.optimize(subtour_callback)
     n = m._n
 
-    solution = m.getAttr('x', m._eVars)
-    u = m.getAttr('X', m._uVars)
-    selected = [(i, j) for i in range(n) for j in range(n) if solution[i, j] > 0.5]
+    sol_u = m.getAttr('X', m._uVars)
+    sol_e = m.getAttr('x', m._eVars)
+    selected = [(i, j) for i in range(n) for j in range(n) if sol_e[i, j] > 0.5]
 
-    route = subtour_calculate(n, selected)
-    assert len(route) == n
+    sol_e = subtour_calculate(n, selected)
+    assert len(sol_e) == n
 
-    route = [n for n in route]
+    solution = [n for n in sol_e]
+    cost_total = m.objVal
 
-    total_cost = m.objVal
-
-    return route, total_cost, m
+    return solution, cost_total, m
 
 
 def subtour_callback(model, where):
@@ -168,64 +158,15 @@ def subtour_calculate(n, edges):
 
 
 def main():
-    import time
-    import matplotlib as mpl
     import matplotlib.pyplot as plt
+    import utils
 
-    mpl.style.use('bmh')
-    mpl.rcParams['figure.figsize'] = (12, 6)
-    np.random.seed(47)
+    nodes = utils.generate_nodes()
+    distances = utils.calculate_distances(nodes)
 
-    def __plot_problem(ips, tsp_route, total_cost):
-        idx = [city for city in tsp_route]
-        ips_route = ips[idx, :]
+    solution, cost_total, _ = utils.solve_problem(tsp_problem, distances)
 
-        fig, ax = plt.subplots()
-        ax.plot(ips[:, 1], ips[:, 0], 'o', label='inspection points')
-        ax.plot(ips_route[:, 1], ips_route[:, 0], 'r-', alpha=0.3)
-
-        for k, n in enumerate(idx):
-            x, y = ips[n, 1], ips[n, 0]
-            xt, yt = x + 0.05 * np.abs(x), y + 0.05 * np.abs(y)
-
-            ax.annotate(str(k), xy=(x, y), xycoords='data', xytext=(xt, yt))
-
-        ax.set_xlabel('East (m)')
-        ax.set_ylabel('North (m)')
-        ax.set_title('TSP Problem')
-
-        return fig, ax
-
-    # generate random problem
-    n = 20
-    ips = np.random.randint(-50, 50, (n, 2))
-
-    # standard cost
-    distances = np.zeros((n, n))
-
-    for k in xrange(n):
-        for p in xrange(n):
-            distances[k, p] = np.linalg.norm(ips[k, :] - ips[p, :])
-
-    # optional cost
-    distances_return = np.zeros((n, n))
-
-    for k in xrange(n):
-        for p in xrange(n):
-            distances_return[k, p] = np.linalg.norm(ips[k, :] - ips[p, :]) + np.linalg.norm(ips[p, :] - ips[0, :])
-
-
-    # solve using the Gurobi solver
-    st = time.time()
-    tsp_route, total_cost, model = tsp_problem(distances)
-    dt = time.time() - st
-
-    print('Gurobi Solver')
-    print('Time to Solve: %.2f secs' % dt)
-    print('Cost: %.3f' % total_cost)
-    print('TSP Route: %s\n' % tsp_route)
-
-    fig, ax = __plot_problem(ips, tsp_route, total_cost)
+    fig, ax = utils.plot_problem(nodes, solution, cost_total)
     plt.show()
 
 if __name__ == '__main__':
