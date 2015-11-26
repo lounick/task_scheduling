@@ -1,47 +1,39 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-# Software License Agreement (BSD License)
+# Copyright (c) 2015, lounick and decabyte
+# All rights reserved.
 #
-#  Copyright (c) 2014, Ocean Systems Laboratory, Heriot-Watt University, UK.
-#  All rights reserved.
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
 #
-#  Redistribution and use in source and binary forms, with or without
-#  modification, are permitted provided that the following conditions
-#  are met:
+# * Redistributions of source code must retain the above copyright notice, this
+#   list of conditions and the following disclaimer.
 #
-#   * Redistributions of source code must retain the above copyright
-#     notice, this list of conditions and the following disclaimer.
-#   * Redistributions in binary form must reproduce the above
-#     copyright notice, this list of conditions and the following
-#     disclaimer in the documentation and/or other materials provided
-#     with the distribution.
-#   * Neither the name of the Heriot-Watt University nor the names of
-#     its contributors may be used to endorse or promote products
-#     derived from this software without specific prior written
-#     permission.
+# * Redistributions in binary form must reproduce the above copyright notice,
+#   this list of conditions and the following disclaimer in the documentation
+#   and/or other materials provided with the distribution.
 #
-#  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-#  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-#  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-#  FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-#  COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-#  INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-#  BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-#  LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-#  CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-#  LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-#  ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-#  POSSIBILITY OF SUCH DAMAGE.
+# * Neither the name of task_scheduling nor the names of its
+#   contributors may be used to endorse or promote products derived from
+#   this software without specific prior written permission.
 #
-#  Original authors:
-#   Nikolaos Tsiogkas, Valerio De Carolis
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+# AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+# DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+# SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+# OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 """
 Simple path optimiser that accepts an entry and exit point in literature it is defined as Open Vehicle Routing Problem
 """
 
-from __future__ import division
+from __future__ import (absolute_import, division, print_function, unicode_literals)
 
 import numpy as np
 from gurobipy import *
@@ -130,81 +122,16 @@ def ovrp_problem(cost, start=None, finish=None, **kwargs):
 
 
 def main():
-    import time
-    import matplotlib as mpl
     import matplotlib.pyplot as plt
-    from mpl_toolkits.mplot3d import Axes3D
+    import task_scheduling.utils as tsu
 
-    mpl.style.use('bmh')
-    mpl.rcParams['figure.figsize'] = (12, 6)
-    np.random.seed(47)
+    nodes = tsu.generate_nodes()
+    distances = tsu.calculate_distances(nodes)
 
-    def __plot_problem(ips, tsp_route, total_cost):
-        idx = tsp_route #[int(city.split('c_')[1]) for city in tsp_route]
-        ips_route = ips[idx, :]
+    solution, cost_total, _ = tsu.solve_problem(ovrp_problem, distances)
 
-        fig, ax = plt.subplots()
-        ax.plot(ips[:, 1], ips[:, 0], 'o', label='inspection points')
-        ax.plot(ips_route[:, 1], ips_route[:, 0], 'r-', alpha=0.3)
-
-        for n in xrange(len(idx)):
-            x, y = ips[n, 1], ips[n, 0]
-            xt, yt = x - 0.10 * np.abs(x), y - 0.10 * np.abs(y)
-
-            ax.annotate('#%d' % n, xy=(x, y), xycoords='data', xytext=(xt,yt))
-
-        for k, n in enumerate(idx):
-            x, y = ips[n, 1], ips[n, 0]
-            xt, yt = x + 0.05 * np.abs(x), y + 0.05 * np.abs(y)
-
-            ax.annotate(str(k), xy=(x, y), xycoords='data', xytext=(xt,yt))
-
-        ax.axis('equal')
-
-        ax.set_xlabel('East (m)')
-        ax.set_ylabel('North (m)')
-        ax.set_title('TSP Problem')
-
-        return fig, ax
-
-    def __plot_problem3d(ips, tsp_route, total_cost):
-        idx = tsp_route
-        ips_route = ips[idx, :]
-        fig, ax = plt.subplots()
-        ax = fig.add_subplot(111, projection='3d')
-        ax.scatter(ips[:, 1], ips[:, 0], ips[:,2], 'o', label='inspection points')
-        ax.plot(ips_route[:, 1], ips_route[:, 0], ips_route[:, 2], 'r-', alpha=0.3)
-        return fig, ax
-
-    # generate random problem
-    n = 12
-    points = np.random.randint(-50, 50, (n, 2))
-    cities = ['c_{}'.format(k) for k in xrange(n)]
-
-    # standard cost
-    distances = np.zeros((n, n))
-
-    for k in xrange(n):
-        for p in xrange(n):
-            distances[k, p] = np.linalg.norm(points[k, :] - points[p, :])
-
-    # solve using the Gurobi solver
-    st = time.time()
-    tsp_route, total_cost, model = ovrp_problem(distances, 1, 2)
-    dt = time.time() - st
-
-    print('Gurobi Solver')
-    print('Time to Solve: %.2f secs' % dt)
-    print('Cost: %.3f' % total_cost)
-    print('TSP Route: %s\n' % tsp_route)
-
-    if points.shape[1] == 3:
-        fig, ax = __plot_problem3d(points, tsp_route, total_cost)
-    else:
-        fig, ax = __plot_problem(points, tsp_route, total_cost)
-
+    fig, ax = tsu.plot_problem(nodes, solution, cost_total)
     plt.show()
-
 
 if __name__ == '__main__':
     main()
