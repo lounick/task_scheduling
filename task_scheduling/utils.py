@@ -266,18 +266,49 @@ def plot_problem_3d(nodes, solution, cost_total):
     ax: object
         axes object
     """
-    nodes = np.atleast_3d(nodes)
-    idx = solution
-    route = nodes[idx, :]
-
+    # init plot
+    _set_plot_style()
     fig, ax = plt.subplots(subplot_kw=dict(projection='3d'))
 
-    ax.scatter(nodes[:, 1], nodes[:, 0], nodes[:,2], label='nodes')
-    ax.plot(route[:, 1], route[:, 0], route[:, 2], 'r--', alpha=0.8, label='route')
+    nodes = np.atleast_2d(nodes)
 
+    # plot vertexes
+    ax.scatter(nodes[:, 1], nodes[:, 0], nodes[:,2], label='nodes')
+
+    # # add labels
+    # for n in xrange(len(idx)):
+    #     x, y = nodes[n, 1], nodes[n, 0]
+    #     xt, yt = x - 0.10 * np.abs(x), y - 0.10 * np.abs(y)
+    #
+    #     ax.annotate('#%d' % n, xy=(x, y), xycoords='data', xytext=(xt,yt))
+
+    # normalize solution(s)
+    indexes = []
+
+    if len(solution) > 0:
+        if type(solution[0]) == list:
+            indexes.extend(solution)
+        else:
+            indexes.append(solution)
+
+    # plot solution(s)
+    for n, idx in enumerate(indexes):
+        # route plots
+        route = nodes[idx, :]
+        ax.plot(nodes[idx, 1], nodes[idx, 0], route[:, 2], '--', alpha=0.8, label='#{}'.format(n))
+
+        # # add route order
+        # for k, n in enumerate(idx):
+        #     x, y, z = nodes[n, 1], nodes[n, 0], nodes[n, 2]
+        #     xt, yt, zt = x + 0.05 * np.abs(x), y + 0.05 * np.abs(y), z + 0.05 * np.abs(z)
+        #
+        #     ax.annotate(str(k), xy=(x, y), xycoords='data', xytext=(xt, yt))
+
+    # adjust plot features
     ax.legend(loc='best')
     ax.xaxis.set_minor_locator(mpl.ticker.AutoMinorLocator(2))
     ax.yaxis.set_minor_locator(mpl.ticker.AutoMinorLocator(2))
+    ax.zaxis.set_minor_locator(mpl.ticker.AutoMinorLocator(2))
     ax.grid(which='minor')
 
     ax.set_xlabel('X (m)')
@@ -286,4 +317,3 @@ def plot_problem_3d(nodes, solution, cost_total):
     ax.set_title('Problem Solution')
 
     return fig, ax
-
