@@ -33,11 +33,10 @@
 Simple TSP solver
 """
 
-from __future__ import division
+from __future__ import (absolute_import, division, print_function, unicode_literals)
 
 import numpy as np
 import gurobipy
-np.set_printoptions(precision=3, suppress=True)
 
 
 def tsp_problem(cost, **kwargs):
@@ -77,30 +76,31 @@ def tsp_problem(cost, **kwargs):
     m.update()
 
     # (optionally) write problem
-    #model.write("tsp.lp")
+    # model.write("tsp.lp")
 
     # set parameters
     m.params.OutputFlag = kwargs.get('output_flag', 0)
     m.params.LazyConstraints = 1
 
     # optimize model
-    m.optimize(subtour_callback)
-    n = m._n
+    m.optimize(_callback_subtour)
 
+    n = m._n
     sol_u = m.getAttr('X', m._uVars)
     sol_e = m.getAttr('x', m._eVars)
     selected = [(i, j) for i in range(n) for j in range(n) if sol_e[i, j] > 0.5]
 
-    sol_e = subtour_calculate(n, selected)
-    assert len(sol_e) == n
+    # extract calculated route (and add TSP closure)
+    sol_e = _calculate_subtour(n, selected)
+    route = [n for n in sol_e]
+    route.append(0)
 
-    solution = [n for n in sol_e]
-    cost_total = m.objVal
+    # assert len(sol_e) == n
 
-    return solution, cost_total, m
+    return route, m.objVal, m
 
 
-def subtour_callback(model, where):
+def _callback_subtour(model, where):
     """Callback that use lazy constraints to eliminate sub-tours"""
     if where == gurobipy.GRB.callback.MIPSOL:
         n = model._n
@@ -112,19 +112,20 @@ def subtour_callback(model, where):
             selected += [(i, j) for j in range(n) if sol[j] > 0.5]
 
         # find the shortest cycle in the selected edge list
-        tour = subtour_calculate(n, selected)
+        tour = _calculate_subtour(n, selected)
 
         # add a subtour elimination constraint
         if len(tour) < n:
             expr = 0
 
             for i in range(len(tour)):
-                for j in range(i +1, len(tour)):
+                for j in range(i + 1, len(tour)):
                     expr += model._eVars[tour[i], tour[j]]
 
             model.cbLazy(expr <= len(tour) - 1)
 
-def subtour_calculate(n, edges):
+
+def _calculate_subtour(n, edges):
     """Given a list of edges, finds the shortest subtour"""
     visited = [False] * n
     cycles = []
@@ -162,12 +163,13 @@ def main():
     import task_scheduling.utils as tsu
 
     nodes = tsu.generate_nodes()
-    distances = tsu.calculate_distances(nodes)
+    cost = tsu.calculate_distances(nodes)
 
-    solution, cost_total, _ = tsu.solve_problem(tsp_problem, distances)
+    solution, objective, _ = tsu.solve_problem(tsp_problem, cost)
 
-    fig, ax = tsu.plot_problem(nodes, solution, cost_total)
+    fig, ax = tsu.plot_problem(nodes, solution, objective)
     plt.show()
+
 
 if __name__ == '__main__':
     main()

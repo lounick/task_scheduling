@@ -33,13 +33,13 @@
 Multiple traveling salesmen (mTSP) problem solver.
 """
 
-from __future__ import division
+from __future__ import (absolute_import, division, print_function, unicode_literals)
 
 import numpy as np
-from gurobipy import *
+import gurobipy
 
 
-def mtsp_problem(cost, salesmen, min_cities=None, max_cities=None, **kwargs):
+def mtsp_problem(cost, salesmen=1, min_cities=None, max_cities=None, **kwargs):
     """
     Multiple traveling salesmen MILP solver using the Gurobi MILP optimiser.
 
@@ -49,7 +49,6 @@ def mtsp_problem(cost, salesmen, min_cities=None, max_cities=None, **kwargs):
     :param min_cities: Optional parameter of minimum cities to be visited by each salesman.
     :param max_cities: Optional parameter of maximum cities to be visited by each salesman.
     """
-
     n = cost.shape[0]
 
     if min_cities is None:
@@ -62,14 +61,13 @@ def mtsp_problem(cost, salesmen, min_cities=None, max_cities=None, **kwargs):
     else:
         L = max_cities
 
-    m = Model()
+    m = gurobipy.Model()
 
     # Create variables
-
     e_vars = {}
     for i in range(n):
         for j in range(n):
-            e_vars[i, j] = m.addVar(obj=cost[i, j], vtype=GRB.BINARY, name='e'+str(i)+'_'+str(j))
+            e_vars[i, j] = m.addVar(obj=cost[i, j], vtype=gurobipy.GRB.BINARY, name='e' + str(i) + '_' + str(j))
     m.update()
 
     for i in range(n):
@@ -77,26 +75,24 @@ def mtsp_problem(cost, salesmen, min_cities=None, max_cities=None, **kwargs):
 
     u_vars = {}
     for i in range(n):
-        u_vars[i] = m.addVar(lb=0, ub=L, vtype=GRB.INTEGER, name='u'+str(i))
+        u_vars[i] = m.addVar(lb=0, ub=L, vtype=gurobipy.GRB.INTEGER, name='u' + str(i))
     m.update()
 
     # Add degree-2 constraint, and forbid loops
-
-    m.addConstr(quicksum(e_vars[0, i] for i in range(1, n)) == salesmen)
-
-    m.addConstr(quicksum(e_vars[i, 0] for i in range(1, n)) == salesmen)
+    m.addConstr(gurobipy.quicksum(e_vars[0, i] for i in range(1, n)) == salesmen)
+    m.addConstr(gurobipy.quicksum(e_vars[i, 0] for i in range(1, n)) == salesmen)
 
     for i in range(1, n):
-        m.addConstr(quicksum(e_vars[i, j] for j in range(n) if i != j) == 1)
+        m.addConstr(gurobipy.quicksum(e_vars[i, j] for j in range(n) if i != j) == 1)
 
     for i in range(1, n):
-        m.addConstr(quicksum(e_vars[j, i] for j in range(n) if i != j) == 1)
+        m.addConstr(gurobipy.quicksum(e_vars[j, i] for j in range(n) if i != j) == 1)
 
     for i in range(1, n):
-        m.addConstr(u_vars[i] + (L - 2)*e_vars[0, i] - e_vars[i, 0] <= L - 1)
+        m.addConstr(u_vars[i] + (L - 2) * e_vars[0, i] - e_vars[i, 0] <= L - 1)
 
     for i in range(1, n):
-        m.addConstr(u_vars[i] + e_vars[0, i] + (2 - K)*e_vars[i, 0] >= 2)
+        m.addConstr(u_vars[i] + e_vars[0, i] + (2 - K) * e_vars[i, 0] >= 2)
 
     for i in range(1, n):
         m.addConstr(e_vars[0, i] + e_vars[i, 0] <= 1)
@@ -104,7 +100,7 @@ def mtsp_problem(cost, salesmen, min_cities=None, max_cities=None, **kwargs):
     for i in range(1, n):
         for j in range(1, n):
             if i != j:
-                m.addConstr(u_vars[i] - u_vars[j] + L*e_vars[i, j] + (L - 2)*e_vars[j, i] <= L - 1)
+                m.addConstr(u_vars[i] - u_vars[j] + L * e_vars[i, j] + (L - 2) * e_vars[j, i] <= L - 1)
     m.update()
 
     m._vars = e_vars
@@ -114,20 +110,22 @@ def mtsp_problem(cost, salesmen, min_cities=None, max_cities=None, **kwargs):
 
     solution = m.getAttr('X', e_vars)
     selected = [(i, j) for i in range(n) for j in range(n) if solution[i, j] > 0.5]
-
     routes = []
 
     for i in range(salesmen):
         routes.append([])
         next_city = 0
         finished = False
+
         while not finished:
             for j in range(len(selected)):
                 if selected[j][0] == next_city:
                     routes[i].append(next_city)
                     next_city = selected[j][1]
+
                     selected.pop(j)
                     break
+
             if next_city == 0:
                 finished = True
 
@@ -135,39 +133,17 @@ def mtsp_problem(cost, salesmen, min_cities=None, max_cities=None, **kwargs):
 
 
 def main():
-    import time
-    RANDOM = False
-    if RANDOM:
-        # generate random problem
-        n = 4
-        points = np.random.randint(-50, 50, (n, 2))
-    else:
-        n = 5
-        points = np.zeros((n, 2))
-        points[1, :] = [1, 1]
-        points[2, :] = [1, 2]
-        points[3, :] = [-1, 1]
-        points[4, :] = [-1, 2]
-        print(points)
+    import matplotlib.pyplot as plt
+    import task_scheduling.utils as tsu
 
-    # standard cost
-    distances = np.zeros((n, n))
+    nodes = tsu.generate_nodes()
+    cost = tsu.calculate_distances(nodes)
+    salesmen = np.random.randint(2, 4)
 
-    for k in xrange(n):
-        for p in xrange(n):
-            distances[k, p] = np.linalg.norm(points[k, :] - points[p, :])
+    solution, objective, _ = tsu.solve_problem(mtsp_problem, cost, salesmen=salesmen)
 
-    print(distances)
-
-    # solve using the Gurobi solver
-    st = time.time()
-    tsp_route, total_cost, model = mtsp_problem(distances, 2)
-    dt = time.time() - st
-
-    print('Gurobi Solver')
-    print('Time to Solve: %.2f secs' % dt)
-    print('Cost: %.3f' % total_cost)
-    print('TSP Route: %s\n' % tsp_route)
+    fig, ax = tsu.plot_problem(nodes, solution, objective)
+    plt.show()
 
 
 if __name__ == '__main__':
