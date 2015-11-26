@@ -1,48 +1,41 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-# Software License Agreement (BSD License)
+# Copyright (c) 2015, lounick and decabyte
+# All rights reserved.
 #
-#  Copyright (c) 2014, Ocean Systems Laboratory, Heriot-Watt University, UK.
-#  All rights reserved.
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
 #
-#  Redistribution and use in source and binary forms, with or without
-#  modification, are permitted provided that the following conditions
-#  are met:
+# * Redistributions of source code must retain the above copyright notice, this
+#   list of conditions and the following disclaimer.
 #
-#   * Redistributions of source code must retain the above copyright
-#     notice, this list of conditions and the following disclaimer.
-#   * Redistributions in binary form must reproduce the above
-#     copyright notice, this list of conditions and the following
-#     disclaimer in the documentation and/or other materials provided
-#     with the distribution.
-#   * Neither the name of the Heriot-Watt University nor the names of
-#     its contributors may be used to endorse or promote products
-#     derived from this software without specific prior written
-#     permission.
+# * Redistributions in binary form must reproduce the above copyright notice,
+#   this list of conditions and the following disclaimer in the documentation
+#   and/or other materials provided with the distribution.
 #
-#  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-#  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-#  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-#  FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-#  COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-#  INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-#  BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-#  LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-#  CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-#  LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-#  ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-#  POSSIBILITY OF SUCH DAMAGE.
+# * Neither the name of task_scheduling nor the names of its
+#   contributors may be used to endorse or promote products derived from
+#   this software without specific prior written permission.
 #
-#  Original authors:
-#   Nikolaos Tsiogkas, Valerio De Carolis
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+# AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+# DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+# SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+# OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-"""
+"""Orienteering problem solver
+
 Implementation of an integer linear formulation for maximizing the targets visited by a vehicle under cost constraint.
 The vehicle has to start and finish at the first point and it is allowed to skip targets.
 Described in:
-Laporte, Gilbert, and Silvano Martello. "The selective travelling salesman problem."
-Discrete applied mathematics 26.2 (1990): 193-207.
+Vansteenwegen, Pieter, Wouter Souffriau, and Dirk Van Oudheusden. "The orienteering problem: A survey."
+European Journal of Operational Research 209.1 (2011): 1-10.
 """
 
 from __future__ import division
@@ -52,6 +45,22 @@ from gurobipy import *
 
 
 def _callback(model, where):
+    """Callback function for the solver
+
+    Callback function that adds lazy constraints for the optimisation process. Here it dynamically imposes cardinality
+    constraints for the vertices in the solution, ensuring that if a path enters a vertex there must be a path exiting.
+
+    Parameters
+    ----------
+    model : object
+        The gurobi model instance
+    where : int
+        Gurobi specific callback variable
+
+    Returns
+    -------
+
+    """
     if where == GRB.callback.MIPSOL:
         V = set(range(model._n))
         idx_start = model._idxStart
@@ -71,44 +80,60 @@ def _callback(model, where):
 
         for k in range(len(selected)):
             el = selected[k]
-            entry = {el[0]}
-            if len(idx_start.intersection(entry)) == 0:
-                expr1 = quicksum(model._eVars[i, entry.intersection().pop()] for i in V)
-                expr2 = quicksum(model._eVars[entry.intersection().pop(), j] for j in V)
+            entry = el[0]
+            if idx_start != entry:
+                expr1 = quicksum(model._eVars[i, entry] for i in V)
+                expr2 = quicksum(model._eVars[entry, j] for j in V)
 
                 model.cbLazy(expr1, GRB.EQUAL, expr2)
 
 
-def op_problem(cost, profit=None, cost_max=np.inf, idx_start=None, idx_finish=None, **kwargs):
-    """
+def op_problem(cost, profit=None, cost_max=None, idx_start=None, idx_finish=None, **kwargs):
+    """Orienteering problem solver instance
+
     Cost constrained traveling salesman problem solver for a single vehicle using the Gurobi MILP optimiser.
 
-    :param cost: Cost matrix for traveling from point to point. Here is time (seconds) needed to go from points a to b.
-    :param profit: Profit vector for profit of visiting each point
-    :param cost_max: Maximum running time of the mission in seconds
-    :param idx_start: Optional starting point for the tour. If none is provided the first point of the array is chosen.
-    :param idx_finish: Optional ending point of the tour. If none is provided the last point of the array is chosen.
-    :return: Returns the route the cost and the model.
+    Parameters
+    ----------
+    cost : ndarray (n, dims)
+        Cost matrix for traveling from point to point. Here is time (seconds) needed to go from points a to b.
+    profit : Optional[vector]
+        Profit vector for profit of visiting each point.
+    cost_max : Optional[double]
+        Maximum running time of the mission in seconds.
+    idx_start : Optional[int]
+        Optional starting point for the tour. If none is provided the first point of the array is chosen.
+    idx_finish : Optional[int]
+        Optional ending point of the tour. If none is provided the last point of the array is chosen.
+    kwargs : Optional[list]
+        Optional extra arguments/
+    Returns
+    -------
+    route : list
+        The calculated route.
+    profit : double
+        The profit of the route.
+    m : object
+        A gurobi model object.
     """
 
     # Number of points
     n = cost.shape[0]
 
+    # Check for default values
     if idx_start is None:
-        idx_start = {0}
-    else:
-        idx_start = {idx_start}
+        idx_start = 0
 
     if idx_finish is None:
-        idx_finish = {n - 1}
-    else:
-        idx_finish = {idx_finish}
+        idx_finish = n - 1
 
     if profit is None:
         profit = np.ones(n)
 
-    # Create the sets
+    if cost_max is None:
+        cost_max = cost[idx_start, idx_finish]
 
+    # Create the vertices set
     V = set(range(n))
 
     m = Model()
@@ -141,37 +166,30 @@ def op_problem(cost, profit=None, cost_max=np.inf, idx_start=None, idx_finish=No
 
     # Add constraints for the initial and final node (1)
     # None enters the starting point
-    m.addConstr(quicksum(e_vars[j, idx_start.intersection().pop()] for j in V.difference(idx_start)) == 0, "s_entry")
+    m.addConstr(quicksum(e_vars[j, idx_start] for j in V.difference([idx_start])) == 0, "s_entry")
     m.update()
 
     # None exits the finish point
-    m.addConstr(quicksum(e_vars[idx_finish.intersection().pop(), j] for j in V.difference(idx_finish)) == 0, "f_exit")
+    m.addConstr(quicksum(e_vars[idx_finish, j] for j in V.difference([idx_finish])) == 0, "f_exit")
     m.update()
 
     # Always exit the starting point
-    m.addConstr(quicksum(e_vars[idx_start.intersection().pop(), i] for i in V.difference(idx_start)) == 1, "s_exit")
+    m.addConstr(quicksum(e_vars[idx_start, i] for i in V.difference([idx_start])) == 1, "s_exit")
     m.update()
 
     # Always enter the finish point
-    m.addConstr(quicksum(e_vars[i, idx_finish.intersection().pop()] for i in V.difference(idx_finish)) == 1, "f_entry")
+    m.addConstr(quicksum(e_vars[i, idx_finish] for i in V.difference([idx_finish])) == 1, "f_entry")
     m.update()
 
     # From all other points someone may exit
-    for i in V.difference(idx_start, idx_finish):
+    for i in V.difference([idx_start, idx_finish]):
         m.addConstr(quicksum(e_vars[i, j] for j in V if i != j) <= 1, "v_" + str(i) + "_exit")
     m.update()
 
     # To all other points someone may enter
-    for i in V.difference(idx_start, idx_finish):
+    for i in V.difference([idx_start, idx_finish]):
         m.addConstr(quicksum(e_vars[j, i] for j in V if i != j) <= 1, "v_" + str(i) + "_entry")
     m.update()
-
-    # If someone enters a point (not the start a finish one) he must exit
-    # for k in V.difference(idx_start, idx_finish):
-    #     expr0 = quicksum(e_vars[i, k] for i in V.difference(idx_finish))
-    #     expr1 = quicksum(e_vars[k, i] for i in V.difference(idx_start))
-    #     m.addConstr(expr0, GRB.EQUAL, expr1, "v_" + str(k) + "_cardinality")
-    # m.update()
 
     # Add cost constraints (3)
     expr = 0
@@ -201,13 +219,13 @@ def op_problem(cost, profit=None, cost_max=np.inf, idx_start=None, idx_finish=No
     m._idxFinish = idx_finish
     m.update()
 
-    m.params.OutputFlag = 1
+    m.params.OutputFlag = 0
     m.params.LazyConstraints = 1
     m.optimize(_callback)
 
     solution = m.getAttr('X', e_vars)
-    u = m.getAttr('X', u_vars)
-    selected = [(i, j) for i in range(n) for j in range(n) if solution[i, j] > 0.5]
+    # u = m.getAttr('X', u_vars)
+    selected = [(i, j) for i in V for j in V if solution[i, j] > 0.5]
 
     # solmat = np.zeros((n, n))
     # for k, v in solution.iteritems():
@@ -220,7 +238,7 @@ def op_problem(cost, profit=None, cost_max=np.inf, idx_start=None, idx_finish=No
     # print(sum(cost[s[0], s[1]] for s in selected))
 
     route = []
-    next_city = idx_start.intersection().pop()
+    next_city = idx_start
 
     while len(selected) > 0:
         for i in range(len(selected)):
@@ -236,57 +254,16 @@ def op_problem(cost, profit=None, cost_max=np.inf, idx_start=None, idx_finish=No
 
 
 def main():
+    import matplotlib.pyplot as plt
+    import task_scheduling.utils as tsu
 
-    import time
-    RANDOM = True
-    if RANDOM:
-        # generate random problem
-        n = 30
-        np.random.seed(42)
-        points = np.random.randint(-50, 50, (n, 2))
-        profits = np.ones(n)
-    else:
-        n = 5
-        points = np.zeros((n, 2))
-        points[1, :] = [1, 1]
-        points[2, :] = [0, 10]
-        points[3, :] = [0, 2]
-        points[4, :] = [1, 2]
+    nodes = tsu.generate_nodes()
+    cost = tsu.calculate_distances(nodes)
 
-        profits = np.ones(n)
+    solution, objective, _ = tsu.solve_problem(op_problem, cost)
 
-        #print(points)
-
-    # standard cost
-    distances = np.zeros((n, n))
-
-    for k in xrange(n):
-        for p in xrange(n):
-            distances[k, p] = np.linalg.norm(points[k, :] - points[p, :])
-
-    # Divide distances by maximum speed. To get time approximation.
-    # distances = distances / 0.8
-
-    print(distances)
-
-    # solve using the Gurobi solver
-    st = time.time()
-
-    max_cost = distances[1, 4]
-    max_cost = 200
-    print('Max Cost: %s' % max_cost)
-
-    tsp_route, total_cost, model = op_problem(distances, profits, max_cost, 1, 4)
-
-
-    dt = time.time() - st
-
-
-
-    print('Gurobi Solver')
-    print('Time to Solve: %.2f secs' % dt)
-    print('Cost: %.3f' % total_cost)
-    print('TSP Route: %s\n' % tsp_route)
+    fig, ax = tsu.plot_problem(nodes, solution, objective)
+    plt.show()
 
 if __name__ == '__main__':
     main()
