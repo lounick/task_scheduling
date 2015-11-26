@@ -33,13 +33,13 @@
 Multi-depot multiple traveling salesmen problem (MmTSP) solver.
 """
 
-from __future__ import division
+from __future__ import (absolute_import, division, print_function, unicode_literals)
 
 import numpy as np
-from gurobipy import *
+import gurobipy
 
 
-def mmtsp_problem(cost, num_depots, min_cities=None, max_cities=None, **kwargs):
+def mmtsp_problem(cost, salesmen=1, min_cities=None, max_cities=None, **kwargs):
     """
     Multi-depot multiple traveling salesmen MILP solver for multi-robot task scheduling using the Gurobi MILP optimiser.
     Points (in the cost matrix) should be ordered in a specific order. The first point is the extraction point for the
@@ -47,12 +47,12 @@ def mmtsp_problem(cost, num_depots, min_cities=None, max_cities=None, **kwargs):
 
     :rtype : Returns tuple with the routes for each salesman from each depot, the objective value, and a model object.
     :param cost: Cost matrix for travelling from point to point.
-    :param num_depots: Number of depots in the solution.
+    :param salesmen: Number of salesmen taking part in the solution.
     :param min_cities: Optional parameter of minimum cities to be visited by each salesman.
     :param max_cities: Optional parameter of maximum cities to be visited by each salesman.
     """
-
     n = cost.shape[0]
+    depots = salesmen + 1
 
     if min_cities is None:
         K = 0
@@ -64,17 +64,17 @@ def mmtsp_problem(cost, num_depots, min_cities=None, max_cities=None, **kwargs):
     else:
         L = max_cities
 
-    m = Model()
+    m = gurobipy.Model()
 
     e_vars = {}
     for i in range(n):
         for j in range(n):
-            e_vars[i, j] = m.addVar(obj=cost[i, j], vtype=GRB.BINARY, name='e_'+str(i)+'_'+str(j))
+            e_vars[i, j] = m.addVar(obj=cost[i, j], vtype=gurobipy.GRB.BINARY, name='e_' + str(i) + '_' + str(j))
     m.update()
 
     u_vars = {}
     for i in range(n):
-        u_vars[i] = m.addVar(vtype=GRB.INTEGER, name='u_'+str(i))
+        u_vars[i] = m.addVar(vtype=gurobipy.GRB.INTEGER, name='u_' + str(i))
     m.update()
 
     for i in range(n):
@@ -82,55 +82,55 @@ def mmtsp_problem(cost, num_depots, min_cities=None, max_cities=None, **kwargs):
     m.update()
 
     # From each depot to other nodes. Notice that in the final depot no-one exits.
-    for i in range(num_depots):
+    for i in range(depots):
         if i == 0:
-            m.addConstr(quicksum(e_vars[i, j] for j in range(num_depots, n)) == 0)
+            m.addConstr(gurobipy.quicksum(e_vars[i, j] for j in range(depots, n)) == 0)
         else:
             # Only one salesman allowed per depot (one robot per position)
-            m.addConstr(quicksum(e_vars[i, j] for j in range(num_depots, n)) == 1)
+            m.addConstr(gurobipy.quicksum(e_vars[i, j] for j in range(depots, n)) == 1)
     m.update()
 
     # From each node to the final depot. No-one returns to his original positions. They are forced to go to extraction.
-    for j in range(num_depots):
+    for j in range(depots):
         if j == 0:
-            m.addConstr(quicksum(e_vars[i, j] for i in range(num_depots, n)) == num_depots-1)
+            m.addConstr(gurobipy.quicksum(e_vars[i, j] for i in range(depots, n)) == depots - 1)
         else:
-            m.addConstr(quicksum(e_vars[i, j] for i in range(num_depots, n)) == 0)
+            m.addConstr(gurobipy.quicksum(e_vars[i, j] for i in range(depots, n)) == 0)
     m.update()
 
     # For the task points someone enters
-    for j in range(num_depots, n):
-        m.addConstr(quicksum(e_vars[i, j] for i in range(n)) == 1)
+    for j in range(depots, n):
+        m.addConstr(gurobipy.quicksum(e_vars[i, j] for i in range(n)) == 1)
     m.update()
 
     # For the task points someone exits
-    for i in range(num_depots, n):
-        m.addConstr(quicksum(e_vars[i, j] for j in range(n)) == 1)
+    for i in range(depots, n):
+        m.addConstr(gurobipy.quicksum(e_vars[i, j] for j in range(n)) == 1)
     m.update()
 
-    for i in range(num_depots, n):
+    for i in range(depots, n):
         m.addConstr(
-            u_vars[i] + (L-2)*quicksum(e_vars[k, i] for k in range(num_depots)) -
-            quicksum(e_vars[i, k] for k in range(num_depots)) <= (L-1)
+            u_vars[i] + (L - 2) * gurobipy.quicksum(e_vars[k, i] for k in range(depots)) -
+            gurobipy.quicksum(e_vars[i, k] for k in range(depots)) <= (L - 1)
         )
     m.update()
 
-    for i in range(num_depots, n):
+    for i in range(depots, n):
         m.addConstr(
-            u_vars[i] + quicksum(e_vars[k, i] for k in range(num_depots)) +
-            (2-K)*quicksum(e_vars[i, k] for k in range(num_depots)) >= 2
+            u_vars[i] + gurobipy.quicksum(e_vars[k, i] for k in range(depots)) +
+            (2 - K) * gurobipy.quicksum(e_vars[i, k] for k in range(depots)) >= 2
         )
     m.update()
 
-    for k in range(num_depots):
-        for i in range(num_depots, n):
+    for k in range(depots):
+        for i in range(depots, n):
             m.addConstr(e_vars[k, i] + e_vars[i, k] <= 1)
     m.update()
 
-    for i in range(num_depots, n):
-        for j in range(num_depots, n):
+    for i in range(depots, n):
+        for j in range(depots, n):
             if i != j:
-                m.addConstr(u_vars[i] - u_vars[j] + L*e_vars[i, j] + (L - 2)*e_vars[j, i] <= L - 1)
+                m.addConstr(u_vars[i] - u_vars[j] + L * e_vars[i, j] + (L - 2) * e_vars[j, i] <= L - 1)
     m.update()
 
     m._vars = e_vars
@@ -140,19 +140,20 @@ def mmtsp_problem(cost, num_depots, min_cities=None, max_cities=None, **kwargs):
 
     solution = m.getAttr('X', e_vars)
     selected = [(i, j) for i in range(n) for j in range(n) if solution[i, j] > 0.5]
-
     routes = []
 
-    for i in range(num_depots-1):
+    for i in range(salesmen):
         routes.append([])
         next_city = selected[i][0]
         finished = False
+
         while not finished:
             for j in range(len(selected)):
                 if selected[j][0] == next_city:
                     routes[i].append(next_city)
                     next_city = selected[j][1]
                     break
+
             if next_city == 0:
                 routes[i].append(next_city)
                 finished = True
@@ -161,41 +162,18 @@ def mmtsp_problem(cost, num_depots, min_cities=None, max_cities=None, **kwargs):
 
 
 def main():
-    import time
-    RANDOM = False
-    if RANDOM:
-        # generate random problem
-        n = 4
-        points = np.random.randint(-50, 50, (n, 2))
-    else:
-        n = 7
-        points = np.zeros((n, 2))
-        points[1, :] = [1, 1]
-        points[3, :] = [1, 2]
-        points[5, :] = [3, 3]
-        points[2, :] = [-1, 1]
-        points[4, :] = [-1, 2]
-        points[6, :] = [-3, 3]
-        print(points)
+    import matplotlib.pyplot as plt
+    import task_scheduling.utils as tsu
 
-    # standard cost
-    distances = np.zeros((n, n))
+    nodes = tsu.generate_nodes()
+    cost = tsu.calculate_distances(nodes)
+    salesmen = np.random.randint(2, 4)
 
-    for k in xrange(n):
-        for p in xrange(n):
-            distances[k, p] = np.linalg.norm(points[k, :] - points[p, :])
+    solution, objective, _ = tsu.solve_problem(mmtsp_problem, cost, salesmen=salesmen)
 
-    print(distances)
+    fig, ax = tsu.plot_problem(nodes, solution, objective)
+    plt.show()
 
-    # solve using the Gurobi solver
-    st = time.time()
-    tsp_route, total_cost, model = mmtsp_problem(distances, 3)
-    dt = time.time() - st
-
-    print('Gurobi Solver')
-    print('Time to Solve: %.2f secs' % dt)
-    print('Cost: %.3f' % total_cost)
-    print('TSP Route: %s\n' % tsp_route)
 
 if __name__ == '__main__':
     main()

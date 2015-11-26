@@ -36,7 +36,7 @@ Simple path optimiser that accepts an entry and exit point in literature it is d
 from __future__ import (absolute_import, division, print_function, unicode_literals)
 
 import numpy as np
-from gurobipy import *
+import gurobipy
 
 
 def ovrp_problem(cost, start=None, finish=None, **kwargs):
@@ -58,13 +58,13 @@ def ovrp_problem(cost, start=None, finish=None, **kwargs):
     if finish is None:
         finish = n - 1
 
-    m = Model()
+    m = gurobipy.Model()
 
     # Create model variables
     e_vars = {}
     for i in range(n):
         for j in range(n):
-            e_vars[i, j] = m.addVar(obj=cost[i, j], vtype=GRB.BINARY, name='e'+str(i)+'_'+str(j))
+            e_vars[i, j] = m.addVar(obj=cost[i, j], vtype=gurobipy.GRB.BINARY, name='e' + str(i) + '_' + str(j))
 
     m.update()
 
@@ -74,34 +74,34 @@ def ovrp_problem(cost, start=None, finish=None, **kwargs):
 
     u_vars = {}
     for i in range(n):
-        u_vars[i] = m.addVar(vtype=GRB.INTEGER, name='u'+str(i))
+        u_vars[i] = m.addVar(vtype=gurobipy.GRB.INTEGER, name='u' + str(i))
     m.update()
 
     # None exits the finish point
-    m.addConstr(quicksum(e_vars[finish, j] for j in range(n)) == 0)
+    m.addConstr(gurobipy.quicksum(e_vars[finish, j] for j in range(n)) == 0)
     m.update()
 
     # From all other points someone exits
     for i in range(n):
         if i != finish:
-            m.addConstr(quicksum(e_vars[i, j] for j in range(n)) == 1)
+            m.addConstr(gurobipy.quicksum(e_vars[i, j] for j in range(n)) == 1)
     m.update()
 
     # None enters the starting point
-    m.addConstr(quicksum(e_vars[j, start] for j in range(n)) == 0)
+    m.addConstr(gurobipy.quicksum(e_vars[j, start] for j in range(n)) == 0)
     m.update()
 
     # To all other points someone enters
     for i in range(n):
         if i != start:
-            m.addConstr(quicksum(e_vars[j, i] for j in range(n)) == 1)
+            m.addConstr(gurobipy.quicksum(e_vars[j, i] for j in range(n)) == 1)
     m.update()
 
     # Sub-tour elimination constraint
     for i in range(n):
         for j in range(n):
             if i != j:
-                m.addConstr(u_vars[i] - u_vars[j] + n * e_vars[i, j] <= n-1)
+                m.addConstr(u_vars[i] - u_vars[j] + n * e_vars[i, j] <= n - 1)
     m.update()
 
     m._vars = e_vars
@@ -113,10 +113,13 @@ def ovrp_problem(cost, start=None, finish=None, **kwargs):
     u = m.getAttr('X', u_vars)
     selected = [(i, j) for i in range(n) for j in range(n) if solution[i, j] > 0.5]
 
+    # extract calculated route
     route = np.zeros(n, dtype=np.int)
 
     for k, v in u.iteritems():
         route[v] = int(k)
+    else:
+        route = route.tolist()
 
     return route, m.objVal, m
 
@@ -126,12 +129,13 @@ def main():
     import task_scheduling.utils as tsu
 
     nodes = tsu.generate_nodes()
-    distances = tsu.calculate_distances(nodes)
+    cost = tsu.calculate_distances(nodes)
 
-    solution, cost_total, _ = tsu.solve_problem(ovrp_problem, distances)
+    solution, cost_total, _ = tsu.solve_problem(ovrp_problem, cost)
 
     fig, ax = tsu.plot_problem(nodes, solution, cost_total)
     plt.show()
+
 
 if __name__ == '__main__':
     main()
