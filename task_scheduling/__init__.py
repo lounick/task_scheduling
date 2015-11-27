@@ -29,8 +29,9 @@
 # OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-from tsp_solver import tsp_problem
-from ovrp_solver import ovrp_problem
-from ccovrp_solver import ccovrp_problem
-from mtsp_solver import mtsp_problem
-from mmtsp_solver import mmtsp_problem
+from tsp_problem import tsp_solver
+from ovrp_problem import ovrp_solver
+from ccovrp_problem import ccovrp_solver
+from mtsp_problem import mtsp_solver
+from mmtsp_problem import mmtsp_solver
+from op_problem import op_solver

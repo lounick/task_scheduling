@@ -87,7 +87,7 @@ def subtourelim(model, where):
             model.cbLazy(expr == len(cities))
 
 
-def ccovrp_problem(cost, max_cost, start=None, finish=None, **kwargs):
+def ccovrp_solver(cost, max_cost, start=None, finish=None, **kwargs):
     """
     Cost constrained open vehicle routing problem solver for a single vehicle using the Gurobi MILP optimiser.
 
@@ -274,7 +274,7 @@ def main():
     # solve using the Gurobi solver
     st = time.time()
     try:
-        tsp_route, total_cost, model = ccovrp_problem(distances, 12)
+        tsp_route, total_cost, model = ccovrp_solver(distances, 12)
     except:
         pass
     dt = time.time() - st

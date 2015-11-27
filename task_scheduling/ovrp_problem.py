@@ -39,7 +39,7 @@ import numpy as np
 import gurobipy
 
 
-def ovrp_problem(cost, start=None, finish=None, **kwargs):
+def ovrp_solver(cost, start=None, finish=None, **kwargs):
     """
     Open vehicle routing problem solver for a single vehicle using the Gurobi MILP optimiser.
 
@@ -131,7 +131,7 @@ def main():
     nodes = tsu.generate_nodes()
     cost = tsu.calculate_distances(nodes)
 
-    solution, cost_total, _ = tsu.solve_problem(ovrp_problem, cost)
+    solution, cost_total, _ = tsu.solve_problem(ovrp_solver, cost)
 
     fig, ax = tsu.plot_problem(nodes, solution, cost_total)
     plt.show()

@@ -39,7 +39,7 @@ import numpy as np
 import gurobipy
 
 
-def mmtsp_problem(cost, salesmen=1, min_cities=None, max_cities=None, **kwargs):
+def mmtsp_solver(cost, salesmen=1, min_cities=None, max_cities=None, **kwargs):
     """
     Multi-depot multiple traveling salesmen MILP solver for multi-robot task scheduling using the Gurobi MILP optimiser.
     Points (in the cost matrix) should be ordered in a specific order. The first point is the extraction point for the
@@ -169,7 +169,7 @@ def main():
     cost = tsu.calculate_distances(nodes)
     salesmen = np.random.randint(2, 4)
 
-    solution, objective, _ = tsu.solve_problem(mmtsp_problem, cost, salesmen=salesmen)
+    solution, objective, _ = tsu.solve_problem(mmtsp_solver, cost, salesmen=salesmen)
 
     fig, ax = tsu.plot_problem(nodes, solution, objective)
     plt.show()

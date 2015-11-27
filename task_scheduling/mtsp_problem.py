@@ -39,7 +39,7 @@ import numpy as np
 import gurobipy
 
 
-def mtsp_problem(cost, salesmen=1, min_cities=None, max_cities=None, **kwargs):
+def mtsp_solver(cost, salesmen=1, min_cities=None, max_cities=None, **kwargs):
     """
     Multiple traveling salesmen MILP solver using the Gurobi MILP optimiser.
 
@@ -140,7 +140,7 @@ def main():
     cost = tsu.calculate_distances(nodes)
     salesmen = np.random.randint(2, 4)
 
-    solution, objective, _ = tsu.solve_problem(mtsp_problem, cost, salesmen=salesmen)
+    solution, objective, _ = tsu.solve_problem(mtsp_solver, cost, salesmen=salesmen)
 
     fig, ax = tsu.plot_problem(nodes, solution, objective)
     plt.show()

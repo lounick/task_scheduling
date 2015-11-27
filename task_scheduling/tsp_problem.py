@@ -39,7 +39,7 @@ import numpy as np
 import gurobipy
 
 
-def tsp_problem(cost, **kwargs):
+def tsp_solver(cost, **kwargs):
     """Uses Gurobi solver with sub-tour optimization to generate the best tour given the distances (recommended)
 
     :param cost:
@@ -165,7 +165,7 @@ def main():
     nodes = tsu.generate_nodes()
     cost = tsu.calculate_distances(nodes)
 
-    solution, objective, _ = tsu.solve_problem(tsp_problem, cost)
+    solution, objective, _ = tsu.solve_problem(tsp_solver, cost)
 
     fig, ax = tsu.plot_problem(nodes, solution, objective)
     plt.show()

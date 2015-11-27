@@ -40,7 +40,7 @@ import numpy as np
 import gurobipy
 
 
-def ccmmtsp_problem(cost, salesmen=1, constraints=None, **kwargs):
+def ccmmtsp_solver(cost, salesmen=1, constraints=None, **kwargs):
     """Cost-constrained MmTSP problem.
 
     Parameters
@@ -219,7 +219,7 @@ def main():
     salesmen = np.random.randint(2, 4)
     constraints = np.random.randint(10, 100, salesmen).tolist()
 
-    solution, objective, _ = tsu.solve_problem(ccmmtsp_problem, cost, salesmen=salesmen, constraints=constraints)
+    solution, objective, _ = tsu.solve_problem(ccmmtsp_solver, cost, salesmen=salesmen, constraints=constraints)
 
     fig, ax = tsu.plot_problem(nodes, solution, objective)
     plt.show()

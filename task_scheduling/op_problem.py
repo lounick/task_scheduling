@@ -88,7 +88,7 @@ def _callback(model, where):
                 model.cbLazy(expr1, GRB.EQUAL, expr2)
 
 
-def op_problem(cost, profit=None, cost_max=None, idx_start=None, idx_finish=None, **kwargs):
+def op_solver(cost, profit=None, cost_max=None, idx_start=None, idx_finish=None, **kwargs):
     """Orienteering problem solver instance
 
     Cost constrained traveling salesman problem solver for a single vehicle using the Gurobi MILP optimiser.
@@ -260,7 +260,7 @@ def main():
     nodes = tsu.generate_nodes()
     cost = tsu.calculate_distances(nodes)
 
-    solution, objective, _ = tsu.solve_problem(op_problem, cost)
+    solution, objective, _ = tsu.solve_problem(op_solver, cost)
 
     fig, ax = tsu.plot_problem(nodes, solution, objective)
     plt.show()
