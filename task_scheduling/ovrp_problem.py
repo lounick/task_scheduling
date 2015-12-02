@@ -106,7 +106,8 @@ def ovrp_solver(cost, start=None, finish=None, **kwargs):
 
     m._vars = e_vars
     m._uVars = u_vars
-    m.params.OutputFlag = 0
+    m.params.OutputFlag = int(kwargs.get('output_flag', 0))
+    m.params.TimeLimit = float(kwargs.get('time_limit', 60.0))
     m.optimize()
 
     solution = m.getAttr('X', e_vars)

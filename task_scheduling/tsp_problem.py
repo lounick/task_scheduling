@@ -79,7 +79,8 @@ def tsp_solver(cost, **kwargs):
     # model.write("tsp.lp")
 
     # set parameters
-    m.params.OutputFlag = kwargs.get('output_flag', 0)
+    m.params.OutputFlag = int(kwargs.get('output_flag', 0))
+    m.params.TimeLimit = float(kwargs.get('time_limit', 60.0))
     m.params.LazyConstraints = 1
 
     # optimize model
