@@ -219,7 +219,8 @@ def op_solver(cost, profit=None, cost_max=None, idx_start=None, idx_finish=None,
     m._idxFinish = idx_finish
     m.update()
 
-    m.params.OutputFlag = 0
+    m.params.OutputFlag = int(kwargs.get('output_flag', 0))
+    m.params.TimeLimit = float(kwargs.get('time_limit', 60.0))
     m.params.LazyConstraints = 1
     m.optimize(_callback)
 

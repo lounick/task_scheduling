@@ -105,7 +105,8 @@ def mtsp_solver(cost, salesmen=1, min_cities=None, max_cities=None, **kwargs):
 
     m._vars = e_vars
     m._uvars = u_vars
-    m.params.OutputFlag = 0  # kwargs.get('output_flag', 0)
+    m.params.OutputFlag = int(kwargs.get('output_flag', 0))
+    m.params.TimeLimit = float(kwargs.get('time_limit', 60.0))
     m.optimize()
 
     solution = m.getAttr('X', e_vars)
