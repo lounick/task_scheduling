@@ -87,7 +87,6 @@ def _callback(model, where):
                 expr2 = quicksum(model._eVars[entry, j] for j in V)
 
                 model.cbLazy(expr1, GRB.EQUAL, expr2)
-                # model.cbLazy(expr2, GRB.EQUAL, model._eiVars[entry])
 
 
 def cop_solver(cost, profit=None, cost_max=None, idx_start=None, idx_finish=None, **kwargs):
@@ -164,7 +163,8 @@ def cop_solver(cost, profit=None, cost_max=None, idx_start=None, idx_finish=None
     # Set objective function (0)
     expr = 0
     for i in V:
-        expr += profit[i] * ei_vars[i] + quicksum(profit[j]*(1/(10*cost[i,j]))*ei_vars[i]*(ei_vars[i]-ei_vars[j]) for j in V if j != i)
+        expr += profit[i] * ei_vars[i] + quicksum(profit[j]*(np.e**(-2*cost[i,j]))*ei_vars[i]*(ei_vars[i]-ei_vars[j])
+                                                  for j in V if j != i)
     m.setObjective(expr, GRB.MAXIMIZE)
     m.update()
 
@@ -271,26 +271,26 @@ def main():
     import matplotlib.pyplot as plt
     import task_scheduling.utils as tsu
 
-    nodes = tsu.generate_nodes()
+    nodes = tsu.generate_nodes(n=100)
     cost = tsu.calculate_distances(nodes)
 
     nodes = []
     nodes.append([0,0])
-    for i in range(1,5):
-        for j in range(-1,2):
+    for i in range(1,7):
+        for j in range(-3,4):
             nodes.append([i,j])
-    nodes.append([5,0])
+    nodes.append([7,0])
     nodes = np.array(nodes)
     cost = tsu.calculate_distances(nodes)
 
-    solution, objective, _ = tsu.solve_problem(cop_solver, cost, cost_max=10)
+    solution, objective, _ = tsu.solve_problem(cop_solver, cost, cost_max=10,output_flag=1,time_limit=720)
 
     util = 0
     for i in solution:
         extras = 0
         for j in range(cost.shape[0]):
             if j != i and j not in solution:
-                extras += 1/(10*cost[i,j])
+                extras += np.e**(-2*cost[i,j])
         util += 1 + extras
 
     print("Utility: {0}".format(util))
