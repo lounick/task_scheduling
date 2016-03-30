@@ -64,16 +64,16 @@ def _callback(model, where):
     if where == GRB.callback.MIPSOL:
         V = set(range(model._n))
         idx_start = model._idxStart
-        idx_finish = model._idxFinish
+        # idx_finish = model._idxFinish
 
-        solmat = np.zeros((model._n, model._n))
+        # solmat = np.zeros((model._n, model._n))
         selected = []
 
         for i in V:
             sol = model.cbGetSolution([model._eVars[i, j] for j in V])
             selected += [(i, j) for j in V if sol[j] > 0.5]
 
-            solmat[i, :] = sol
+            # solmat[i, :] = sol
 
         if len(selected) <= 1:
             return
@@ -158,7 +158,8 @@ def op_solver(cost, profit=None, cost_max=None, idx_start=None, idx_finish=None,
     expr = 0
     for i in V:
         for j in V:
-            expr += profit[i] * e_vars[i, j]
+            if i != idx_start and i != idx_finish:
+                expr += profit[i] * e_vars[i, j]
     m.setObjective(expr, GRB.MAXIMIZE)
     m.update()
 
@@ -191,10 +192,16 @@ def op_solver(cost, profit=None, cost_max=None, idx_start=None, idx_finish=None,
         m.addConstr(quicksum(e_vars[j, i] for j in V if i != j) <= 1, "v_" + str(i) + "_entry")
     m.update()
 
+    # for i in V.difference([idx_start, idx_finish]):
+    #     m.addConstr(quicksum(e_vars[j, i] for j in V if i != j) == quicksum(e_vars[i, j] for j in V if i != j), "v_" + str(i) + "_cardinality")
+    # m.update()
+
     # Add cost constraints (3)
     expr = 0
     for i in V:
         for j in V:
+            if i != idx_start and i != idx_finish:
+                expr += e_vars[i, j] * 1 # If we are working on any node other than start or finish just apply a fixed cost
             expr += cost[i, j] * e_vars[i, j]
     m.addConstr(expr <= cost_max, "max_energy")
     m.update()
@@ -221,8 +228,10 @@ def op_solver(cost, profit=None, cost_max=None, idx_start=None, idx_finish=None,
 
     m.params.OutputFlag = int(kwargs.get('output_flag', 0))
     m.params.TimeLimit = float(kwargs.get('time_limit', 60.0))
+    m.params.MIPGap = float(kwargs.get('mip_gap', 0.0))
     m.params.LazyConstraints = 1
     m.optimize(_callback)
+    # m.optimize()
 
     solution = m.getAttr('X', e_vars)
     # u = m.getAttr('X', u_vars)
@@ -257,11 +266,41 @@ def op_solver(cost, profit=None, cost_max=None, idx_start=None, idx_finish=None,
 def main():
     import matplotlib.pyplot as plt
     import task_scheduling.utils as tsu
+    import random
 
-    nodes = tsu.generate_nodes()
+    nodes = tsu.generate_nodes(n=100, lb=-100, up=100, dims=2)
     cost = tsu.calculate_distances(nodes)
 
-    solution, objective, _ = tsu.solve_problem(op_solver, cost)
+
+    nodes = []
+    random.seed(42)
+    nodes.append([0,0])
+    for i in range(1,6):
+        for j in range(-2,3):
+            ni = i
+            nj = j
+            # ni = random.uniform(-0.5,0.5) + i
+            # nj = random.uniform(-0.5,0.5) + j
+            nodes.append([ni,nj])
+    nodes.append([6,0])
+    nodes = np.array(nodes)
+    cost = tsu.calculate_distances(nodes)
+    max_cost = [25.5]
+
+    for mc in max_cost:
+
+        solution, objective, _ = tsu.solve_problem(op_solver, cost, cost_max=mc, output_flag=1, mip_gap=0.0, time_limit=3600)
+
+        util = 0
+        for i in solution:
+            extras = 0
+            if i != 0 and i != solution[len(solution)-1]:
+                for j in range(cost.shape[0]):
+                    if j != i and j not in solution and j != 0 and j != solution[len(solution)-1]:
+                        extras += np.e**(-2*cost[i,j])
+                util += 1 + extras
+
+        print("Utility: {0}".format(util))
 
     fig, ax = tsu.plot_problem(nodes, solution, objective)
     plt.show()
