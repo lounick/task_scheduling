@@ -65,16 +65,16 @@ def _callback(model, where):
     if where == GRB.callback.MIPSOL:
         V = set(range(model._n))
         idx_start = model._idxStart
-        idx_finish = model._idxFinish
+        # idx_finish = model._idxFinish
 
-        solmat = np.zeros((model._n, model._n))
+        # solmat = np.zeros((model._n, model._n))
         selected = []
 
         for i in V:
             sol = model.cbGetSolution([model._eVars[i, j] for j in V])
             selected += [(i, j) for j in V if sol[j] > 0.5]
 
-            solmat[i, :] = sol
+            # solmat[i, :] = sol
 
         if len(selected) <= 1:
             return
@@ -83,9 +83,9 @@ def _callback(model, where):
             el = selected[k]
             entry = el[0]
             if idx_start != entry:
+                # if np.sum(solmat[:,entry]) != np.sum(solmat[entry,:]):
                 expr1 = quicksum(model._eVars[i, entry] for i in V)
                 expr2 = quicksum(model._eVars[entry, j] for j in V)
-
                 model.cbLazy(expr1, GRB.EQUAL, expr2)
 
 
@@ -163,8 +163,8 @@ def cop_solver(cost, profit=None, cost_max=None, idx_start=None, idx_finish=None
     # Set objective function (0)
     expr = 0
     for i in V:
-        expr += profit[i] * ei_vars[i] + quicksum(profit[j]*(np.e**(-2*cost[i,j]))*ei_vars[i]*(ei_vars[i]-ei_vars[j])
-                                                  for j in V if j != i)
+        if i != idx_start and i != idx_finish:
+            expr += profit[i] * ei_vars[i] + quicksum(profit[j] * np.exp(-2 * cost[i, j]) * ei_vars[i] * (ei_vars[i] - ei_vars[j]) for j in V if j != i and j != idx_start and j != idx_finish and cost[i,j] < 2)
     m.setObjective(expr, GRB.MAXIMIZE)
     m.update()
 
@@ -201,9 +201,15 @@ def cop_solver(cost, profit=None, cost_max=None, idx_start=None, idx_finish=None
         m.addConstr(quicksum(e_vars[j, i] for j in V if i != j) == ei_vars[i], "vi_" + str(i) + "_entry")
     m.update()
 
+    # for i in V.difference([idx_start, idx_finish]):
+    #     m.addConstr(quicksum(e_vars[j, i] for j in V if i != j) == quicksum(e_vars[i, j] for j in V if i != j), "v_" + str(i) + "_cardinality")
+    # m.update()
+
     # Add cost constraints (3)
     expr = 0
     for i in V:
+        if i != idx_start and i != idx_finish:
+            expr += 1*ei_vars[i]
         for j in V:
             expr += cost[i, j] * e_vars[i, j]
     m.addConstr(expr <= cost_max, "max_energy")
@@ -232,8 +238,10 @@ def cop_solver(cost, profit=None, cost_max=None, idx_start=None, idx_finish=None
 
     m.params.OutputFlag = int(kwargs.get('output_flag', 0))
     m.params.TimeLimit = float(kwargs.get('time_limit', 60.0))
+    m.params.MIPGap = float(kwargs.get('mip_gap', 0.0))
     m.params.LazyConstraints = 1
     m.optimize(_callback)
+    # m.optimize()
 
     solution = m.getAttr('X', e_vars)
     u = m.getAttr('X', u_vars)
@@ -268,32 +276,44 @@ def cop_solver(cost, profit=None, cost_max=None, idx_start=None, idx_finish=None
 
 
 def main():
+    import matplotlib as mpl
     import matplotlib.pyplot as plt
     import task_scheduling.utils as tsu
+    import random
 
-    nodes = tsu.generate_nodes(n=100)
+    mpl.rcParams['figure.facecolor']='white'
+
+    nodes = tsu.generate_nodes(n=40)
     cost = tsu.calculate_distances(nodes)
 
     nodes = []
+    random.seed(42)
     nodes.append([0,0])
-    for i in range(1,7):
-        for j in range(-3,4):
-            nodes.append([i,j])
-    nodes.append([7,0])
+    for i in range(1,6):
+        for j in range(-2,3):
+            ni = i
+            nj = j
+            # ni = random.uniform(-0.5,0.5) + i
+            # nj = random.uniform(-0.5,0.5) + j
+            nodes.append([ni,nj])
+    nodes.append([6,0])
     nodes = np.array(nodes)
     cost = tsu.calculate_distances(nodes)
+    max_cost = [25.5]
 
-    solution, objective, _ = tsu.solve_problem(cop_solver, cost, cost_max=10,output_flag=1,time_limit=720)
+    for mc in max_cost:
+        solution, objective, _ = tsu.solve_problem(cop_solver, cost, cost_max=mc,output_flag=1,time_limit=36000, mip_gap=0.1)
 
-    util = 0
-    for i in solution:
-        extras = 0
-        for j in range(cost.shape[0]):
-            if j != i and j not in solution:
-                extras += np.e**(-2*cost[i,j])
-        util += 1 + extras
+        util = 0
+        for i in solution:
+            extras = 0
+            if i != 0 and i != solution[len(solution)-1]:
+                for j in range(cost.shape[0]):
+                    if j != i and j not in solution and j != 0 and j != solution[len(solution)-1] and cost[i,j] < 2:
+                        extras += np.e**(-2*cost[i,j])
+                util += 1 + extras
 
-    print("Utility: {0}".format(util))
+        print("Utility: {0}".format(util))
 
     fig, ax = tsu.plot_problem(nodes, solution, objective)
     plt.show()
