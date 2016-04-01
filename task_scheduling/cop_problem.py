@@ -42,7 +42,7 @@ Conference on, pp. 342-349. IEEE, 2014.
 from __future__ import division
 
 import numpy as np
-from gurobipy import *
+import gurobipy as gu
 
 
 def _callback(model, where):
@@ -62,18 +62,16 @@ def _callback(model, where):
     -------
 
     """
-    if where == GRB.callback.MIPSOL:
+    if where == gu.GRB.callback.MIPSOL:
         V = set(range(model._n))
         idx_start = model._idxStart
         # idx_finish = model._idxFinish
 
-        # solmat = np.zeros((model._n, model._n))
         selected = []
 
         for i in V:
             sol = model.cbGetSolution([model._eVars[i, j] for j in V])
             selected += [(i, j) for j in V if sol[j] > 0.5]
-
             # solmat[i, :] = sol
 
         if len(selected) <= 1:
@@ -84,12 +82,12 @@ def _callback(model, where):
             entry = el[0]
             if idx_start != entry:
                 # if np.sum(solmat[:,entry]) != np.sum(solmat[entry,:]):
-                expr1 = quicksum(model._eVars[i, entry] for i in V)
-                expr2 = quicksum(model._eVars[entry, j] for j in V)
-                model.cbLazy(expr1, GRB.EQUAL, expr2)
+                expr1 = gu.quicksum(model._eVars[i, entry] for i in V)
+                expr2 = gu.quicksum(model._eVars[entry, j] for j in V)
+                model.cbLazy(expr1, gu.GRB.EQUAL, expr2)
 
 
-def cop_solver(cost, profit=None, cost_max=None, idx_start=None, idx_finish=None, **kwargs):
+def cop_solver(cost, profit=None, dist=None, cost_max=None, idx_start=None, idx_finish=None, **kwargs):
     """Orienteering problem solver instance
 
     Cost constrained traveling salesman problem solver for a single vehicle using the Gurobi MILP optimiser.
@@ -118,8 +116,19 @@ def cop_solver(cost, profit=None, cost_max=None, idx_start=None, idx_finish=None
         A gurobi model object.
     """
 
-    # Number of points
+    # problem size
     n = cost.shape[0]
+
+    # exponential decay
+    max_range = float(kwargs.get('max_range', 2.0))
+    alpha = -np.log(0.01) / max_range
+
+    # sensing distances
+    if dist is None or dist.shape != cost.shape:
+        dist = np.copy(cost)
+
+    # sensing energy
+    node_energy = float(kwargs.get('node_energy', 1.0))
 
     # Check for default values
     if idx_start is None:
@@ -137,13 +146,13 @@ def cop_solver(cost, profit=None, cost_max=None, idx_start=None, idx_finish=None
     # Create the vertices set
     V = set(range(n))
 
-    m = Model()
+    m = gu.Model()
 
     # Create model variables
     e_vars = {}
     for i in V:
         for j in V:
-            e_vars[i, j] = m.addVar(vtype=GRB.BINARY, name='e_' + str(i) + '_' + str(j))
+            e_vars[i, j] = m.addVar(vtype=gu.GRB.BINARY, name='e_' + str(i) + '_' + str(j))
     m.update()
 
     for i in V:
@@ -152,53 +161,56 @@ def cop_solver(cost, profit=None, cost_max=None, idx_start=None, idx_finish=None
 
     ei_vars = {}
     for i in V:
-        ei_vars[i] = m.addVar(vtype=GRB.BINARY, name='ei_' + str(i))
+        ei_vars[i] = m.addVar(vtype=gu.GRB.BINARY, name='ei_' + str(i))
     m.update()
 
     u_vars = {}
     for i in V:
-        u_vars[i] = m.addVar(vtype=GRB.INTEGER, name='u_' + str(i))
+        u_vars[i] = m.addVar(vtype=gu.GRB.INTEGER, name='u_' + str(i))
     m.update()
 
     # Set objective function (0)
     expr = 0
     for i in V:
         if i != idx_start and i != idx_finish:
-            expr += profit[i] * ei_vars[i] + quicksum(profit[j] * np.exp(-2 * cost[i, j]) * ei_vars[i] * (ei_vars[i] - ei_vars[j]) for j in V if j != i and j != idx_start and j != idx_finish and cost[i,j] < 2)
-    m.setObjective(expr, GRB.MAXIMIZE)
+            expr += profit[i] * ei_vars[i] + gu.quicksum(
+                profit[j] * np.exp(-alpha * dist[i, j]) * ei_vars[i] * (ei_vars[i] - ei_vars[j])
+                for j in V if j != i and j != idx_start and j != idx_finish and dist[i,j] < max_range
+            )
+    m.setObjective(expr, gu.GRB.MAXIMIZE)
     m.update()
 
     # Constraints
 
     # Add constraints for the initial and final node (1)
     # None enters the starting point
-    m.addConstr(quicksum(e_vars[j, idx_start] for j in V.difference([idx_start])) == 0, "s_entry")
+    m.addConstr(gu.quicksum(e_vars[j, idx_start] for j in V.difference([idx_start])) == 0, "s_entry")
     m.update()
 
     # None exits the finish point
-    m.addConstr(quicksum(e_vars[idx_finish, j] for j in V.difference([idx_finish])) == 0, "f_exit")
+    m.addConstr(gu.quicksum(e_vars[idx_finish, j] for j in V.difference([idx_finish])) == 0, "f_exit")
     m.update()
 
     # Always exit the starting point
-    m.addConstr(quicksum(e_vars[idx_start, i] for i in V.difference([idx_start])) == 1, "s_exit")
-    m.addConstr(quicksum(e_vars[idx_start, i] for i in V.difference([idx_start])) == ei_vars[idx_start], "si_exit")
+    m.addConstr(gu.quicksum(e_vars[idx_start, i] for i in V.difference([idx_start])) == 1, "s_exit")
+    m.addConstr(gu.quicksum(e_vars[idx_start, i] for i in V.difference([idx_start])) == ei_vars[idx_start], "si_exit")
     m.update()
 
     # Always enter the finish point
-    m.addConstr(quicksum(e_vars[i, idx_finish] for i in V.difference([idx_finish])) == 1, "f_entry")
-    m.addConstr(quicksum(e_vars[i, idx_finish] for i in V.difference([idx_finish])) == ei_vars[idx_finish], "fi_entry")
+    m.addConstr(gu.quicksum(e_vars[i, idx_finish] for i in V.difference([idx_finish])) == 1, "f_entry")
+    m.addConstr(gu.quicksum(e_vars[i, idx_finish] for i in V.difference([idx_finish])) == ei_vars[idx_finish], "fi_entry")
     m.update()
 
     # From all other points someone may exit
     for i in V.difference([idx_start, idx_finish]):
-        m.addConstr(quicksum(e_vars[i, j] for j in V if i != j) <= 1, "v_" + str(i) + "_exit")
-        m.addConstr(quicksum(e_vars[i, j] for j in V if i != j) == ei_vars[i], "vi_" + str(i) + "_exit")
+        m.addConstr(gu.quicksum(e_vars[i, j] for j in V if i != j) <= 1, "v_" + str(i) + "_exit")
+        m.addConstr(gu.quicksum(e_vars[i, j] for j in V if i != j) == ei_vars[i], "vi_" + str(i) + "_exit")
     m.update()
 
     # To all other points someone may enter
     for i in V.difference([idx_start, idx_finish]):
-        m.addConstr(quicksum(e_vars[j, i] for j in V if i != j) <= 1, "v_" + str(i) + "_entry")
-        m.addConstr(quicksum(e_vars[j, i] for j in V if i != j) == ei_vars[i], "vi_" + str(i) + "_entry")
+        m.addConstr(gu.quicksum(e_vars[j, i] for j in V if i != j) <= 1, "v_" + str(i) + "_entry")
+        m.addConstr(gu.quicksum(e_vars[j, i] for j in V if i != j) == ei_vars[i], "vi_" + str(i) + "_entry")
     m.update()
 
     # for i in V.difference([idx_start, idx_finish]):
@@ -209,7 +221,8 @@ def cop_solver(cost, profit=None, cost_max=None, idx_start=None, idx_finish=None
     expr = 0
     for i in V:
         if i != idx_start and i != idx_finish:
-            expr += 1*ei_vars[i]
+            expr += node_energy * ei_vars[i]
+
         for j in V:
             expr += cost[i, j] * e_vars[i, j]
     m.addConstr(expr <= cost_max, "max_energy")
@@ -224,8 +237,11 @@ def cop_solver(cost, profit=None, cost_max=None, idx_start=None, idx_finish=None
     # Add subtour constraint (5)
     for i in V:
         for j in V:
-            m.addConstr(u_vars[i] - u_vars[j] + 1, GRB.LESS_EQUAL, (n - 1)*(1 - e_vars[i, j]),
-                        "sec_" + str(i) + "_" + str(j))
+            m.addConstr(
+                u_vars[i] - u_vars[j] + 1,
+                gu.GRB.LESS_EQUAL, (n - 1)*(1 - e_vars[i, j]),
+                "sec_" + str(i) + "_" + str(j)
+            )
     m.update()
 
     m._n = n
@@ -258,7 +274,6 @@ def cop_solver(cost, profit=None, cost_max=None, idx_start=None, idx_finish=None
     # print(sum(cost[s[0], s[1]] for s in selected))
     # print(m.getAttr('X',ei_vars))
 
-
     route = []
     next_city = idx_start
 
@@ -275,13 +290,40 @@ def cop_solver(cost, profit=None, cost_max=None, idx_start=None, idx_finish=None
     return route, m.objVal, m
 
 
+def calculate_utility(solution, distance, profit=None, max_range=2.0, **kwargs):
+    """Calculates COP utility assuming starting and ending points are solution[0] and solution[-1]."""
+    n = distance.shape[0]
+    k = len(solution)
+
+    # exponential decay
+    alpha = -np.log(0.01) / max_range
+
+    # output
+    utility = 0
+
+    if profit is None:
+        profit = np.ones(n)
+        profit[0] = 0
+        profit[-1] = 0
+
+    for i in solution:
+        if i != 0 and i != solution[k - 1]:
+            for j in xrange(n):
+                if j != i and j not in solution and j != 0 and j != solution[k - 1] and distance[i, j] < max_range:
+                    utility += np.exp(-alpha * distance[i, j])
+
+            utility += profit[i]
+
+    return utility
+
+
 def main():
     import matplotlib as mpl
     import matplotlib.pyplot as plt
     import task_scheduling.utils as tsu
     import random
 
-    mpl.rcParams['figure.facecolor']='white'
+    mpl.rcParams['figure.facecolor'] = 'white'
 
     nodes = tsu.generate_nodes(n=40)
     cost = tsu.calculate_distances(nodes)
@@ -289,6 +331,7 @@ def main():
     nodes = []
     random.seed(42)
     nodes.append([0,0])
+
     for i in range(1,6):
         for j in range(-2,3):
             ni = i
@@ -296,26 +339,21 @@ def main():
             # ni = random.uniform(-0.5,0.5) + i
             # nj = random.uniform(-0.5,0.5) + j
             nodes.append([ni,nj])
+
     nodes.append([6,0])
     nodes = np.array(nodes)
+
     cost = tsu.calculate_distances(nodes)
     max_cost = [25.5]
 
     for mc in max_cost:
-        solution, objective, _ = tsu.solve_problem(cop_solver, cost, cost_max=mc,output_flag=1,time_limit=36000, mip_gap=0.1)
+        solution, objective, _ = tsu.solve_problem(cop_solver, cost, cost_max=mc ,output_flag=1, time_limit=36000, mip_gap=0.1)
+        utility = calculate_utility(solution, cost)
 
-        util = 0
-        for i in solution:
-            extras = 0
-            if i != 0 and i != solution[len(solution)-1]:
-                for j in range(cost.shape[0]):
-                    if j != i and j not in solution and j != 0 and j != solution[len(solution)-1] and cost[i,j] < 2:
-                        extras += np.e**(-2*cost[i,j])
-                util += 1 + extras
-
-        print("Utility: {0}".format(util))
+        print("Utility: {0}".format(utility))
 
     fig, ax = tsu.plot_problem(nodes, solution, objective)
+    ax.axis('equal')
     plt.show()
 
 if __name__ == '__main__':
