@@ -120,6 +120,9 @@ def op_solver(cost, profit=None, cost_max=None, idx_start=None, idx_finish=None,
     # Number of points
     n = cost.shape[0]
 
+    # other params
+    node_energy = float(kwargs.get('node_energy', 1.0))
+
     # Check for default values
     if idx_start is None:
         idx_start = 0
@@ -200,8 +203,10 @@ def op_solver(cost, profit=None, cost_max=None, idx_start=None, idx_finish=None,
     expr = 0
     for i in V:
         for j in V:
+            # add a fixed cost for intermediate nodes (sensing energy)
             if i != idx_start and i != idx_finish:
-                expr += e_vars[i, j] * 1 # If we are working on any node other than start or finish just apply a fixed cost
+                expr += node_energy * e_vars[i, j]
+
             expr += cost[i, j] * e_vars[i, j]
     m.addConstr(expr <= cost_max, "max_energy")
     m.update()
@@ -231,10 +236,8 @@ def op_solver(cost, profit=None, cost_max=None, idx_start=None, idx_finish=None,
     m.params.MIPGap = float(kwargs.get('mip_gap', 0.0))
     m.params.LazyConstraints = 1
     m.optimize(_callback)
-    # m.optimize()
 
     solution = m.getAttr('X', e_vars)
-    # u = m.getAttr('X', u_vars)
     selected = [(i, j) for i in V for j in V if solution[i, j] > 0.5]
 
     # solmat = np.zeros((n, n))
@@ -271,10 +274,10 @@ def main():
     nodes = tsu.generate_nodes(n=100, lb=-100, up=100, dims=2)
     cost = tsu.calculate_distances(nodes)
 
-
     nodes = []
     random.seed(42)
     nodes.append([0,0])
+
     for i in range(1,6):
         for j in range(-2,3):
             ni = i
@@ -282,22 +285,25 @@ def main():
             # ni = random.uniform(-0.5,0.5) + i
             # nj = random.uniform(-0.5,0.5) + j
             nodes.append([ni,nj])
+
     nodes.append([6,0])
     nodes = np.array(nodes)
+
     cost = tsu.calculate_distances(nodes)
     max_cost = [25.5]
 
     for mc in max_cost:
-
         solution, objective, _ = tsu.solve_problem(op_solver, cost, cost_max=mc, output_flag=1, mip_gap=0.0, time_limit=3600)
-
         util = 0
+
         for i in solution:
             extras = 0
+
             if i != 0 and i != solution[len(solution)-1]:
                 for j in range(cost.shape[0]):
                     if j != i and j not in solution and j != 0 and j != solution[len(solution)-1]:
                         extras += np.e**(-2*cost[i,j])
+
                 util += 1 + extras
 
         print("Utility: {0}".format(util))

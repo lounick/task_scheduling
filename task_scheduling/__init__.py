@@ -35,3 +35,4 @@ from ccovrp_problem import ccovrp_solver
 from mtsp_problem import mtsp_solver
 from mmtsp_problem import mmtsp_solver
 from op_problem import op_solver
+from cop_problem import cop_solver
