@@ -140,7 +140,7 @@ def _set_plot_style():
         mpl.style.use('bmh')
 
     mpl.rcParams['figure.figsize'] = _get_figsize(scale=2.0)
-    #mpl.rcParams[''] = 'tight'
+    # mpl.rcParams[''] = 'tight'
 
 
 def _get_figsize(scale=1.0):
@@ -225,6 +225,7 @@ def plot_problem(nodes, solution, objective):
         for k, n in enumerate(idx):
             x, y = nodes[n, 1], nodes[n, 0]
             xt, yt = x + 0.05 * np.abs(x), y + 0.05 * np.abs(y)
+            xt, yt = x + 0.15, y + 0.15
 
             ax.annotate(str(k), xy=(x, y), xycoords='data', xytext=(xt, yt))
 
@@ -233,7 +234,8 @@ def plot_problem(nodes, solution, objective):
     ylim = ax.get_ylim()
     xnew =  (xlim[0] - np.abs(xlim[0] * 0.05), xlim[1] + np.abs(xlim[1] * 0.05))
     ynew =  (ylim[0] - np.abs(ylim[0] * 0.05), ylim[1] + np.abs(ylim[1] * 0.05))
-
+    xnew =  (xlim[0] - 2, xlim[1] + 2)
+    ynew =  (ylim[0] - 1, ylim[1] + 1)
     ax.set_xlim(xnew)
     ax.set_ylim(ynew)
 
@@ -315,5 +317,50 @@ def plot_problem_3d(nodes, solution, cost_total):
     ax.set_ylabel('Y (m)')
     ax.set_zlabel('Z (m)')
     ax.set_title('Problem Solution')
+
+    return fig, ax
+
+def plot_problem_correlation(nodes, solution, objective, max_range=2.0):
+    def cor(x, y, centre, max_range):
+        alpha = -np.log(0.01)/max_range
+        val = np.exp(-alpha*np.sqrt((centre[1]-x)**2 + (centre[0]-y)**2))
+        # for i in range(len(val)):
+        #     for j in range(len(val[i])):
+        #         if val[i][j] < 0.001:
+        #             val[i][j] = 0
+        return val
+
+    fig, ax = plot_problem(nodes, solution, objective)
+
+    ax.hold(True)
+
+    (xmin, xmax) = ax.get_xlim()
+    (ymin, ymax) = ax.get_ylim()
+    extent = xmin, xmax, ymin, ymax
+    dx, dy = 0.01, 0.01
+
+    indexes = []
+
+    if len(solution) > 0:
+        if type(solution[0]) == list:
+            indexes.extend(solution)
+        else:
+            indexes.append(solution)
+
+    for n, idx in enumerate(indexes):
+        # route plots
+        route = nodes[idx, :]
+        ims = []
+        x = np.arange(xmin, xmax, dx)
+        y = np.arange(ymax, ymin, -dy)
+        X, Y = np.meshgrid(x, y)
+        Z = cor(X, Y, route[1], max_range)
+        for node in route[2:len(route)-1]:
+            Z += cor(X, Y, node, max_range)
+            # plt.cm.jet
+        ax.imshow(Z, cmap="Blues", alpha=.9, interpolation='bilinear',extent=extent)
+    # ax.legend(loc=(0.6,0.9))
+    # fig.set_dpi(300)
+
 
     return fig, ax
