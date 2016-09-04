@@ -123,6 +123,10 @@ def ctop_solver(cost, num_robots=None, profit=None, cost_max=None, idx_start=Non
         A gurobi model object.
     """
 
+    # exponential decay
+    max_range = float(kwargs.get('max_range', 2.0))
+    alpha = -np.log(0.01) / max_range
+
     # Number of points
     n = cost.shape[0]
 
@@ -181,7 +185,7 @@ def ctop_solver(cost, num_robots=None, profit=None, cost_max=None, idx_start=Non
     for i in V:
         if i != idx_start and i != idx_finish:
             expr += profit[i] * ei_vars[i] + quicksum(
-                profit[j] * np.exp(-2 * cost[i, j]) * ei_vars[i] * (ei_vars[i] - ei_vars[j])
+                profit[j] * np.exp(-alpha * cost[i, j]) * ei_vars[i] * (ei_vars[i] - ei_vars[j])
                 for j in V if j != i and j != idx_start and j != idx_finish and cost[i,j] < 2
             )
     m.setObjective(expr, GRB.MAXIMIZE)
@@ -356,7 +360,7 @@ def main():
     nodes = np.array(nodes)
     cost = tsu.calculate_distances(nodes)
     max_cost = [25.5]
-    mc = [14, 14]
+    mc = [13.5, 13.5]
     num_robots = 2
     # for mc in max_cost:
     solution, objective, _ = tsu.solve_problem(ctop_solver, cost, num_robots=num_robots, cost_max=mc, output_flag=1, time_limit=36000, mip_gap=0.0)
