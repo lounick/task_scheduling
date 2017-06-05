@@ -31,8 +31,12 @@
 
 from tsp_problem import tsp_solver
 from ovrp_problem import ovrp_solver
+from movrp_problem import movrp_solver
 from ccovrp_problem import ccovrp_solver
 from mtsp_problem import mtsp_solver
 from mmtsp_problem import mmtsp_solver
 from op_problem import op_solver
 from cop_problem import cop_solver
+from tlpp_problem import tlpp_solver
+from pcovrp_problem import pcovrp_solver
+from inspection_op_problem import inspection_op_solver
