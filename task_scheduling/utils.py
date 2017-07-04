@@ -53,7 +53,7 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 
 np.set_printoptions(precision=3, suppress=True)
-np.random.seed(42)
+np.random.seed(int(time.time()))
 
 
 def generate_nodes(n=20, lb=-50, ub=50, dims=2, **kwargs):
@@ -198,6 +198,7 @@ def plot_problem(nodes, solution, objective):
 
     # plot vertexes
     ax.plot(nodes[:, 1], nodes[:, 0], 'o', ms=8, label='nodes')
+    # ax.plot(nodes[:, 0], nodes[:, 1], 'o', ms=8, label='nodes')
 
     # # add labels
     # for n in xrange(len(idx)):
@@ -219,23 +220,25 @@ def plot_problem(nodes, solution, objective):
     for n, idx in enumerate(indexes):
         # route plots
         route = nodes[idx, :]
+        # ax.plot(route[:, 0], route[:, 1], '--', alpha=0.8, label='route #{}'.format(n))
         ax.plot(route[:, 1], route[:, 0], '--', alpha=0.8, label='route #{}'.format(n))
 
         # add route order
         for k, n in enumerate(idx):
+            # x, y = nodes[n, 0], nodes[n, 1]
             x, y = nodes[n, 1], nodes[n, 0]
             xt, yt = x + 0.05 * np.abs(x), y + 0.05 * np.abs(y)
             xt, yt = x + 0.15, y + 0.15
-
             ax.annotate(str(k), xy=(x, y), xycoords='data', xytext=(xt, yt))
 
     # adjust plot features
+    ax.axis('equal')
     xlim = ax.get_xlim()
     ylim = ax.get_ylim()
     xnew =  (xlim[0] - np.abs(xlim[0] * 0.05), xlim[1] + np.abs(xlim[1] * 0.05))
     ynew =  (ylim[0] - np.abs(ylim[0] * 0.05), ylim[1] + np.abs(ylim[1] * 0.05))
-    xnew =  (xlim[0] - 2, xlim[1] + 2)
-    ynew =  (ylim[0] - 1, ylim[1] + 1)
+    # xnew =  (xlim[0] - 2, xlim[1] + 2)
+    # ynew =  (ylim[0] - 1, ylim[1] + 1)
     ax.set_xlim(xnew)
     ax.set_ylim(ynew)
 
@@ -320,7 +323,39 @@ def plot_problem_3d(nodes, solution, cost_total):
 
     return fig, ax
 
-def plot_problem_correlation(nodes, solution, objective, max_range=2.0):
+def plot_problem_correlation_circles(nodes, solution, objective, max_range=2.0):
+    import matplotlib.patches as mpatches
+    from matplotlib.collections import PatchCollection
+
+    fig, ax = plot_problem(nodes, solution, objective)
+
+    ax.hold(True)
+
+    indexes = []
+
+    if len(solution) > 0:
+        if type(solution[0]) == list:
+            indexes.extend(solution)
+        else:
+            indexes.append(solution)
+
+    circles = []
+    for n, idx in enumerate(indexes):
+        # route plots
+        route = nodes[idx, :]
+
+        for node in route[9:10]:#len(route) - 1]:
+            # print("Node: {0}".format(node))
+            circle = mpatches.Circle((node[1],node[0]), radius=max_range, fill=False, edgecolor='blue', linestyle='dotted', lw=1.5, label='Max sensor range')
+            circles.append(circle)
+
+    # collection = PatchCollection(circles, cmap=plt.cm.hsv, alpha=0.3)
+    # ax.add_collection(collection)
+    for p in circles:
+        ax.add_patch(p)
+    return fig, ax
+
+def plot_problem_correlation_gradient(nodes, solution, objective, max_range=2.0):
     def cor(x, y, centre, max_range):
         alpha = -np.log(0.01)/max_range
         val = np.exp(-alpha*np.sqrt((centre[1]-x)**2 + (centre[0]-y)**2))
@@ -355,7 +390,7 @@ def plot_problem_correlation(nodes, solution, objective, max_range=2.0):
         y = np.arange(ymax, ymin, -dy)
         X, Y = np.meshgrid(x, y)
         Z = cor(X, Y, route[1], max_range)
-        for node in route[2:len(route)-1]:
+        for node in route[1:len(route)-1]:
             Z += cor(X, Y, node, max_range)
             # plt.cm.jet
         ax.imshow(Z, cmap="Blues", alpha=.9, interpolation='bilinear',extent=extent)
@@ -364,3 +399,21 @@ def plot_problem_correlation(nodes, solution, objective, max_range=2.0):
 
 
     return fig, ax
+
+def generate_grid(x_size, y_size=None, idx_start=[0,0]):
+    import math
+    if y_size is None:
+        y_size = x_size
+
+    nodes = []
+    nodes.append(idx_start)
+    idx_finish = [idx_start[0]+x_size+1, idx_start[1]]
+    y_2_floor = int(math.floor(y_size/2.0))
+    y_2_ceil = int(math.ceil(y_size/2.0))
+    y_start_ceil = int(math.ceil(idx_start[1]))
+    for i in range(int(idx_start[0]+1), int(idx_start[0]+x_size+1)):
+        for j in range(-y_2_floor + y_start_ceil, y_2_ceil + y_start_ceil):
+            nodes.append([i,j])
+    nodes.append(idx_finish)
+    return nodes
+
