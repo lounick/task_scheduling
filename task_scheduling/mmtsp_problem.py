@@ -169,12 +169,14 @@ def main():
     nodes = tsu.generate_nodes()
     cost = tsu.calculate_distances(nodes)
     salesmen = np.random.randint(2, 4)
-
     solution, objective, _ = tsu.solve_problem(mmtsp_solver, cost, salesmen=salesmen)
 
     fig, ax = tsu.plot_problem(nodes, solution, objective)
     plt.show()
 
+    solution, objective, _ = tsu.solve_problem(mmtsp_solver, cost, salesmen=salesmen, min_cities=5)
 
+    fig, ax = tsu.plot_problem(nodes, solution, objective)
+    plt.show()
 if __name__ == '__main__':
     main()

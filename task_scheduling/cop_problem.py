@@ -214,7 +214,7 @@ def cop_solver(cost, profit=None, dist=None, cost_max=None, idx_start=None, idx_
     m.update()
 
     # for i in V.difference([idx_start, idx_finish]):
-    #     m.addConstr(quicksum(e_vars[j, i] for j in V if i != j) == quicksum(e_vars[i, j] for j in V if i != j), "v_" + str(i) + "_cardinality")
+    #     m.addConstr(gu.quicksum(e_vars[j, i] for j in V if i != j) == gu.quicksum(e_vars[i, j] for j in V if i != j), "v_" + str(i) + "_cardinality")
     # m.update()
 
     # Add cost constraints (3)
@@ -344,17 +344,33 @@ def main():
     nodes = np.array(nodes)
 
     cost = tsu.calculate_distances(nodes)
-    max_cost = [25.5]
+    max_cost = [51*2/4]
 
     for mc in max_cost:
-        solution, objective, _ = tsu.solve_problem(cop_solver, cost, cost_max=mc ,output_flag=1, time_limit=36000, mip_gap=0.1)
+        solution, objective, _ = tsu.solve_problem(cop_solver, cost, cost_max=mc ,output_flag=1, time_limit=36000, mip_gap=0.01)
         utility = calculate_utility(solution, cost)
 
         print("Utility: {0}".format(utility))
 
-    fig, ax = tsu.plot_problem(nodes, solution, objective)
+    # fig, ax = tsu.plot_problem(nodes, solution, objective)
+    # solution = [0,3,4,9,10,15,20,25,19,13,12,7,1,6,11,16,21,22,23,26]
+    # fig, ax = tsu.plot_problem_correlation_gradient(nodes, solution, objective)
+    # ax.axis('equal')
+    # plt.show()
+    # plt.savefig('miqp-grad.png', dpi=300)
+    fig, ax = tsu.plot_problem_correlation_circles(nodes, solution, objective)
     ax.axis('equal')
     plt.show()
+    # plt.savefig('miqp-circ.png', dpi=300)
+    #
+    # solution = [0,3,2,1,6,11,16,17,18,13,8,9,5,10,15,20,25,24,23,26]
+    # fig, ax = tsu.plot_problem_correlation_gradient(nodes, solution, objective)
+    # ax.axis('equal')
+    # plt.savefig('ga-grad.png', dpi=300)
+    # fig, ax = tsu.plot_problem_correlation_circles(nodes, solution, objective)
+    # ax.axis('equal')
+    # plt.savefig('ga-circ.png', dpi=300)
+
 
 if __name__ == '__main__':
     main()

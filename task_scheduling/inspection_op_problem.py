@@ -319,8 +319,43 @@ def main():
     # ax.axis('equal')
     # plt.show()
     # plt.savefig('miqp-grad.png', dpi=300)
+    a = 2.4748737
+    b = 1.767767
+    nodes = []
+    nodes.append([-0.5,-3])
+    nodes.append([-0.5, 3])
+    nodes.append([0.5, 3])
+    nodes.append([0.5, -3])
+    nodes.append([b,-a])
+    nodes.append([-a,b])
+    nodes.append([-b, a])
+    nodes.append([a, -b])
+    nodes.append([3, -0.5])
+    nodes.append([-3, -0.5])
+    nodes.append([-3, 0.5])
+    nodes.append([3, 0.5])
+    nodes.append([a,b])
+    nodes.append([-b, -a])
+    nodes.append([-a,-b])
+    nodes.append([b, a])
+    solution = range(len(nodes))
+    nodes = np.array(nodes)
+
+    nodes = []
+    a = 2.1213203435596424
+    nodes.append([0,-3])
+    nodes.append([a, -a])
+    nodes.append([3, 0])
+    nodes.append([a, a])
+    nodes.append([0, 3])
+    nodes.append([-a, a])
+    nodes.append([-3, 0])
+    nodes.append([-a, -a])
+    solution = range(len(nodes))
+    nodes = np.array(nodes)
+
     fig, ax = tsu.plot_problem(nodes, solution, objective)
-    ax.axis('equal')
+    # ax.axis('equal')
     plt.show()
     # plt.savefig('miqp-circ.png', dpi=300)
     #

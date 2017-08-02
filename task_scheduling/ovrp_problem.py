@@ -106,8 +106,8 @@ def ovrp_solver(cost, start=None, finish=None, **kwargs):
 
     m._vars = e_vars
     m._uVars = u_vars
-    m.params.OutputFlag = int(kwargs.get('output_flag', 0))
-    m.params.TimeLimit = float(kwargs.get('time_limit', 60.0))
+    m.params.OutputFlag = int(kwargs.get('output_flag', 1))
+    # m.params.TimeLimit = float(kwargs.get('time_limit', 60.0))
     m.params.MIPGap = float(kwargs.get('mip_gap', 0.0))
     m.optimize()
 
@@ -131,6 +131,22 @@ def main():
     import task_scheduling.utils as tsu
 
     nodes = tsu.generate_nodes()
+    cost = tsu.calculate_distances(nodes)
+
+    nodes = []
+    nodes.append([0, 0])
+
+    for i in range(1, 8):
+        for j in range(-3, 4):
+            ni = i
+            nj = j
+            # ni = random.uniform(-0.5,0.5) + i
+            # nj = random.uniform(-0.5,0.5) + j
+            nodes.append([ni, nj])
+
+    nodes.append([8, 0])
+    nodes = np.array(nodes)
+
     cost = tsu.calculate_distances(nodes)
 
     solution, cost_total, _ = tsu.solve_problem(ovrp_solver, cost)

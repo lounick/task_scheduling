@@ -45,6 +45,7 @@ import numpy as np
 from gurobipy import *
 
 
+
 def _callback(model, where):
     """Callback function for the solver
 
@@ -203,11 +204,11 @@ def ctop_solver(cost, num_robots=None, profit=None, cost_max=None, idx_start=Non
 
         # Always exit the starting point
         m.addConstr(quicksum(e_vars[idx_start, i, k] for i in V.difference([idx_start])) == 1, 's_exit_' + str(k))
-        # m.addConstr(quicksum(e_vars[idx_start, i, k] for i in V.difference([idx_start])) == ei_vars[idx_start], 'si_exit_' + str(k))
+        m.addConstr(quicksum(e_vars[idx_start, i, k] for i in V.difference([idx_start])) == ei_vars[idx_start], 'si_exit_' + str(k))
 
         # Always enter the finish point
         m.addConstr(quicksum(e_vars[i, idx_finish, k] for i in V.difference([idx_finish])) == 1, 'f_entry_' + str(k))
-        # m.addConstr(quicksum(e_vars[i, idx_finish, k] for i in V.difference([idx_finish])) == ei_vars[idx_finish], 'fi_entry_' + str(k))
+        m.addConstr(quicksum(e_vars[i, idx_finish, k] for i in V.difference([idx_finish])) == ei_vars[idx_finish], 'fi_entry_' + str(k))
     m.update()
 
     m.addConstr(quicksum(e_vars[idx_start, i, k] for i in V.difference([idx_start]) for k in range(num_robots)) == num_robots, 'si_exit_' + str(k))
@@ -349,21 +350,25 @@ def main():
     nodes = []
     random.seed(42)
     nodes.append([0,0])
-    for i in range(1,6):
-        for j in range(-2,3):
+    for i in range(1,10):
+        for j in range(-4,5):
             ni = i
             nj = j
             # ni = random.uniform(-0.5,0.5) + i
             # nj = random.uniform(-0.5,0.5) + j
             nodes.append([ni,nj])
-    nodes.append([6,0])
+    nodes.append([10,0])
     nodes = np.array(nodes)
     cost = tsu.calculate_distances(nodes)
     max_cost = [25.5]
-    mc = [13.5, 13.5]
-    num_robots = 2
-    # for mc in max_cost:
-    solution, objective, _ = tsu.solve_problem(ctop_solver, cost, num_robots=num_robots, cost_max=mc, output_flag=1, time_limit=36000, mip_gap=0.0)
+    # mc = [13.5, 13.5]
+    num_robots = 6
+    # mc = [(81+82)/float(num_robots), (81+82)/float(num_robots), (81+82)/float(num_robots), (81+82)/float(num_robots), (81+82)/float(num_robots), (81+82)/float(num_robots)]
+    mc = [4.0*((81+82)/float(num_robots))/4.0]*num_robots
+    print(mc)
+
+     # for mc in max_cost:
+    solution, objective, _ = tsu.solve_problem(ctop_solver, cost, num_robots=num_robots, cost_max=mc, output_flag=1, time_limit=360000, mip_gap=0.05)
 
         # util = 0
         # print(solution)
@@ -376,8 +381,37 @@ def main():
         #         util += 1 + extras
         #
         # print("Utility: {0}".format(util))
-
+    # solution = [ [0, 4, 13, 3, 12, 21, 20, 11, 2, 1, 10, 19, 28, 29, 37, 38, 48, 49, 58, 59, 68, 77, 82],  [0, 14, 15, 24, 23, 32, 33, 43, 42, 51, 60, 61, 62, 63, 72, 81, 80, 71, 70, 79, 69, 78, 82],  [0, 22, 31, 30, 39, 40, 41, 50, 57, 56, 47, 46, 55, 64, 73, 65, 74, 75, 66, 67, 76, 82],  [0, 5, 6, 7, 8, 9, 18, 17, 16, 25, 26, 27, 36, 45, 54, 53, 44, 35, 34, 52, 82]]
+    # solution = [[0, 4, 13, 22, 31, 30, 21, 20, 29, 38, 39, 48, 49, 40, 41, 50, 59, 58, 67, 76, 82],
+    #  [0, 5, 14, 23, 24, 15, 16, 25, 34, 33, 42, 43, 44, 53, 52, 51, 60, 61, 70, 78, 82],
+    #  [0, 6, 7, 8, 9, 18, 27, 26, 35, 36, 45, 54, 63, 72, 71, 81, 80, 79, 69, 77, 82],
+    #  [0, 3, 12, 2, 1, 10, 19, 28, 37, 46, 47, 56, 55, 64, 73, 74, 65, 66, 75, 82]]
+    # nodes = tsu.generate_grid(9,9,[10,10])
+    # nodes = np.array(nodes)
+    # print(nodes)
+    # BEST GA 6
+    # solution = [ [0, 4, 12, 21, 20, 29, 38, 48, 47, 56, 65, 75, 76, 82],  [0, 15, 24, 25, 33, 42, 43, 52, 61, 60, 69, 78, 82],  [0, 5, 14, 23, 22, 31, 32, 41, 50, 49, 58, 59, 68, 77, 82],  [0, 7, 16, 17, 9, 18, 27, 36, 45, 54, 63, 82],  [0, 34, 35, 44, 53, 62, 71, 72, 81, 80, 79, 82],  [0, 3, 2, 1, 19, 28, 37, 46, 55, 64, 74, 82]]
+    # solution = []
+    # solution = [ [0, 15, 24, 34, 43, 82],  [0, 13, 57, 66, 75, 82],  [0, 25, 44, 53, 62, 82],  [0, 5, 14, 23, 22, 31, 82],  [0, 7, 17, 26, 82],  [0, 29, 37, 47, 82],  [0, 42, 51, 61, 70, 82],  [0, 21, 30, 48, 76, 82],  [0, 32, 41, 50, 59, 68, 77, 82],  [0, 3, 2, 11, 20, 39, 49, 82]]
+    # objective = 0
+    # solution = [ [0, 5, 14, 13, 22, 31, 30, 39, 40, 41, 42, 51, 52, 44, 53, 62, 71, 70, 69, 60, 59, 50, 49, 58, 67, 68, 77, 82],  [0, 6, 7, 16, 15, 24, 23, 32, 33, 34, 35, 26, 17, 8, 9, 18, 27, 36, 45, 54, 63, 72, 81, 80, 79, 78, 82],  [0, 4, 3, 12, 11, 2, 1, 10, 19, 20, 29, 28, 37, 47, 46, 55, 56, 48, 57, 66, 65, 64, 73, 74, 75, 76, 82]]
+    # objective = 0
     fig, ax = tsu.plot_problem(nodes, solution, objective)
+    plt.show()
+
+    nodes = []
+    nodes.append([0,0])
+    nodes += tsu.generate_grid(9, 9,[15,-18])
+    nodes += tsu.generate_grid(6, 6, [33, -6.5])
+    nodes += tsu.generate_grid(7, 7, [54, -9])
+    nodes += tsu.generate_grid(6, 6, [12, 24.5])
+    nodes += tsu.generate_grid(9, 9, [42, 9])
+    nodes += tsu.generate_grid(7, 7, [60, 15])
+    nodes.append([69,0])
+    print(nodes)
+    print(len(nodes))
+    nodes = np.array(nodes)
+    fig, ax = tsu.plot_problem(nodes, [], objective)
     plt.show()
 
 if __name__ == '__main__':

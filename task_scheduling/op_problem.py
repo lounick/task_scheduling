@@ -195,9 +195,9 @@ def op_solver(cost, profit=None, cost_max=None, idx_start=None, idx_finish=None,
         m.addConstr(quicksum(e_vars[j, i] for j in V if i != j) <= 1, "v_" + str(i) + "_entry")
     m.update()
 
-    # for i in V.difference([idx_start, idx_finish]):
-    #     m.addConstr(quicksum(e_vars[j, i] for j in V if i != j) == quicksum(e_vars[i, j] for j in V if i != j), "v_" + str(i) + "_cardinality")
-    # m.update()
+    for i in V.difference([idx_start, idx_finish]):
+        m.addConstr(quicksum(e_vars[j, i] for j in V if i != j) == quicksum(e_vars[i, j] for j in V if i != j), "v_" + str(i) + "_cardinality")
+    m.update()
 
     # Add cost constraints (3)
     expr = 0
@@ -234,8 +234,9 @@ def op_solver(cost, profit=None, cost_max=None, idx_start=None, idx_finish=None,
     m.params.OutputFlag = int(kwargs.get('output_flag', 0))
     m.params.TimeLimit = float(kwargs.get('time_limit', 60.0))
     m.params.MIPGap = float(kwargs.get('mip_gap', 0.0))
-    m.params.LazyConstraints = 1
-    m.optimize(_callback)
+    # m.params.LazyConstraints = 1
+    # m.optimize(_callback)
+    m.optimize()
 
     solution = m.getAttr('X', e_vars)
     selected = [(i, j) for i in V for j in V if solution[i, j] > 0.5]

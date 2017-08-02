@@ -143,6 +143,10 @@ def main():
 
     solution, objective, _ = tsu.solve_problem(mtsp_solver, cost, salesmen=salesmen)
 
+    for i in range(salesmen):
+        solution[i].append(0)
+    print(solution)
+
     fig, ax = tsu.plot_problem(nodes, solution, objective)
     plt.show()
 
