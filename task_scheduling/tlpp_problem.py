@@ -112,8 +112,8 @@ def tlpp_solver(cost, salesmen=1, min_cities=None, max_cities=None, **kwargs):
 
     # Precedence constraint
     for i in range(depots, n - 1):
-        m.addConstr(x[i] - e_vars[i, i + 1] - e_vars[i + 1, i] <= 0)
-        # m.addConstr(x[i] - e_vars[i, i + 1] <= 0)
+        # m.addConstr(x[i] - e_vars[i, i + 1] - e_vars[i + 1, i] <= 0)
+        m.addConstr(x[i] - e_vars[i, i + 1] <= 0)
         # m.addConstr(u_vars[i] - u_vars[i+1] <= 1)
         # m.addConstr(u_vars[i] - u_vars[i + 1] >= -1)
 

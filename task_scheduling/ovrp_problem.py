@@ -119,7 +119,10 @@ def ovrp_solver(cost, start=None, finish=None, **kwargs):
     route = np.zeros(n, dtype=np.int)
 
     for k, v in u.iteritems():
-        route[v] = int(k)
+        print(k,v)
+
+    for k, v in u.iteritems():
+        route[int(abs(v))] = int(k)
     else:
         route = route.tolist()
 
@@ -133,26 +136,36 @@ def main():
     nodes = tsu.generate_nodes()
     cost = tsu.calculate_distances(nodes)
 
-    nodes = []
-    nodes.append([0, 0])
 
-    for i in range(1, 8):
-        for j in range(-3, 4):
+    import random
+    nodes = []
+    nodes.append([0, -0.5])
+    for i in range(1, 7):
+        for j in range(-3, 3):
             ni = i
             nj = j
-            # ni = random.uniform(-0.5,0.5) + i
-            # nj = random.uniform(-0.5,0.5) + j
+            # ni += random.uniform(-0.25,0.25)
+            # nj += random.uniform(-0.25,0.25)
             nodes.append([ni, nj])
 
-    nodes.append([8, 0])
+    nodes.append([7, -0.5])
     nodes = np.array(nodes)
 
     cost = tsu.calculate_distances(nodes)
-
-    solution, cost_total, _ = tsu.solve_problem(ovrp_solver, cost)
+    print (nodes.shape)
+    solution, cost_total, _ = tsu.solve_problem(ovrp_solver, cost, start=0, finish=37, output_flag=0)
 
     fig, ax = tsu.plot_problem(nodes, solution, cost_total)
     plt.show()
+
+    print("{")
+    for i in range(cost.shape[0]):
+        vector = "  {"
+        for j in range(cost.shape[1]-1):
+            vector += str(cost[i][j]) +", "
+        vector += str(cost[i][cost.shape[1]-1]) + "},"
+        print (vector)
+    print("}")
 
 
 if __name__ == '__main__':

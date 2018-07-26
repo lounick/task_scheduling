@@ -131,8 +131,10 @@ def pcovrp_solver(cost, start=None, finish=None, **kwargs):
     # extract calculated route
     route = np.zeros(n, dtype=np.int)
 
-    for k, v in u.iteritems():
-        route[v] = int(k)
+    for k, v in u.items():
+        if (v == -0.0):
+            v = 0.0
+        route[int(v)] = int(k)
     else:
         route = route.tolist()
 
@@ -144,14 +146,14 @@ def main():
     import task_scheduling.utils as tsu
 
     # nodes = np.array([[0, 0], [1, 1], [1, 2], [-1, 3], [0, 5]])
-    nodes = np.array([[0, 0], [1, 1], [1, 2], [-1, 4], [-1, 3], [0, 5]])
+    # nodes = np.array([[0, 0], [1, 1], [1, 2], [-1, 4], [-1, 3], [0, 5]])
     # nodes = np.array([[0, 0], [1, 1], [1, 2], [-1, 2], [-1, 1], [0, 3]])
-    # nodes = np.array([[0, 0], [0, 1], [0, 2], [1, 2], [1, 1], [2, 3], [2, 4], [2, 5]])
+    nodes = np.array([[0, 0], [0, 1], [0, 2], [1, 2], [1, 1], [2, 3], [2, 4], [2, 5]])
     cost = tsu.calculate_distances(nodes)
 
-    # solution, cost_total, _ = tsu.solve_problem(pcovrp_solver, cost, areas=[0, 1, 0, 1, 0])
-    solution, cost_total, _ = tsu.solve_problem(pcovrp_solver, cost, areas=[0, 1, 0, 1, 0, 0])
-    # solution, cost_total, _ = tsu.solve_problem(pcovrp_solver, cost, areas=[0, 1, 0, 1, 0, 1, 0, 0])
+    # solution, cost_total, _ = tsu.solve_problem(pcovrp_solver, cost, areas=[0, 1, 0, 1, 0], output_flag=1)
+    # solution, cost_total, _ = tsu.solve_problem(pcovrp_solver, cost, areas=[0, 1, 0, 1, 0, 0])
+    solution, cost_total, _ = tsu.solve_problem(pcovrp_solver, cost, areas=[0, 1, 0, 1, 0, 1, 0, 0])
 
     fig, ax = tsu.plot_problem(nodes, solution, cost_total)
     plt.show()

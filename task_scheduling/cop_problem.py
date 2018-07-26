@@ -346,11 +346,11 @@ def main():
     cost = tsu.calculate_distances(nodes)
     max_cost = [51*2/4]
 
-    for mc in max_cost:
-        solution, objective, _ = tsu.solve_problem(cop_solver, cost, cost_max=mc ,output_flag=1, time_limit=36000, mip_gap=0.01)
-        utility = calculate_utility(solution, cost)
-
-        print("Utility: {0}".format(utility))
+    # for mc in max_cost:
+    #     solution, objective, _ = tsu.solve_problem(cop_solver, cost, cost_max=mc ,output_flag=1, time_limit=36000, mip_gap=0.01)
+    #     utility = calculate_utility(solution, cost)
+    #
+    #     print("Utility: {0}".format(utility))
 
     # fig, ax = tsu.plot_problem(nodes, solution, objective)
     # solution = [0,3,4,9,10,15,20,25,19,13,12,7,1,6,11,16,21,22,23,26]
@@ -358,8 +358,11 @@ def main():
     # ax.axis('equal')
     # plt.show()
     # plt.savefig('miqp-grad.png', dpi=300)
+    solution = []
+    objective = 0
     fig, ax = tsu.plot_problem_correlation_circles(nodes, solution, objective)
     ax.axis('equal')
+    fig.savefig("/tmp/fig.png", dpi=300)
     plt.show()
     # plt.savefig('miqp-circ.png', dpi=300)
     #

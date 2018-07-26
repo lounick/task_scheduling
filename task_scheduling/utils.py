@@ -195,6 +195,7 @@ def plot_problem(nodes, solution, objective):
     # init plot
     _set_plot_style()
     fig, ax = plt.subplots()
+    # fig.set_dpi(300)
 
     # plot vertexes
     ax.plot(nodes[:, 1], nodes[:, 0], 'o', ms=8, label='nodes')
@@ -232,7 +233,7 @@ def plot_problem(nodes, solution, objective):
             ax.annotate(str(k), xy=(x, y), xycoords='data', xytext=(xt, yt))
 
     # adjust plot features
-    ax.axis('equal')
+    # ax.axis('equal')
     xlim = ax.get_xlim()
     ylim = ax.get_ylim()
     xnew =  (xlim[0] - np.abs(xlim[0] * 0.05), xlim[1] + np.abs(xlim[1] * 0.05))

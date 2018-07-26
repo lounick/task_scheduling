@@ -121,7 +121,7 @@ def op_solver(cost, profit=None, cost_max=None, idx_start=None, idx_finish=None,
     n = cost.shape[0]
 
     # other params
-    node_energy = float(kwargs.get('node_energy', 1.0))
+    node_energy = float(kwargs.get('node_energy', 0.0))
 
     # Check for default values
     if idx_start is None:
@@ -293,8 +293,28 @@ def main():
     cost = tsu.calculate_distances(nodes)
     max_cost = [25.5]
 
+    filename = "/home/nick/Documents/iros18/test-set/Tsiligirides_1/tsiligirides_problem_1_budget_50.txt"
+    filename = "/home/nick/Documents/iros18/test-set/set_64_1/set_64_1_15.txt"
+    content = []
+    with open(filename) as f:
+        content = f.readlines()
+    f.close()
+
+    max_cost[0] = float(content[0].split()[0])
+    content = content[1:]
+    nodes = []
+    profits = []
+    for line in content:
+        tokens = line.split()
+        nodes.append([float(tokens[0]),float(tokens[1])])
+        profits.append(float(tokens[2]))
+    nodes = np.array(nodes)
+    cost = tsu.calculate_distances(nodes)
     for mc in max_cost:
-        solution, objective, _ = tsu.solve_problem(op_solver, cost, cost_max=mc, output_flag=1, mip_gap=0.0, time_limit=3600)
+        # solution, objective, _ = tsu.solve_problem(op_solver, cost, cost_max=mc, output_flag=1, mip_gap=0.0, time_limit=3600)
+        solution, objective, _ = tsu.solve_problem(op_solver, cost, profit=profits, cost_max=mc,
+                                                   idx_start=0, idx_finish=1, output_flag=1, mip_gap=0.0,
+                                                   time_limit=3600)
         util = 0
 
         for i in solution:

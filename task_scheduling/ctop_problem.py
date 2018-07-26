@@ -185,6 +185,7 @@ def ctop_solver(cost, num_robots=None, profit=None, cost_max=None, idx_start=Non
     expr = 0
     for i in V:
         if i != idx_start and i != idx_finish:
+            # expr += profit[i] * ei_vars[i]
             expr += profit[i] * ei_vars[i] + quicksum(
                 profit[j] * np.exp(-alpha * cost[i, j]) * ei_vars[i] * (ei_vars[i] - ei_vars[j])
                 for j in V if j != i and j != idx_start and j != idx_finish and cost[i,j] < 2
@@ -349,26 +350,26 @@ def main():
 
     nodes = []
     random.seed(42)
-    nodes.append([0,0])
-    for i in range(1,10):
-        for j in range(-4,5):
+    nodes.append([0,-0.5])
+    for i in range(1,7):
+        for j in range(-3,3):
             ni = i
             nj = j
             # ni = random.uniform(-0.5,0.5) + i
             # nj = random.uniform(-0.5,0.5) + j
             nodes.append([ni,nj])
-    nodes.append([10,0])
+    nodes.append([7,-0.5])
     nodes = np.array(nodes)
     cost = tsu.calculate_distances(nodes)
-    max_cost = [25.5]
-    # mc = [13.5, 13.5]
-    num_robots = 6
+    max_cost = [60]
+    mc = [30, 30]
+    num_robots = 2
     # mc = [(81+82)/float(num_robots), (81+82)/float(num_robots), (81+82)/float(num_robots), (81+82)/float(num_robots), (81+82)/float(num_robots), (81+82)/float(num_robots)]
-    mc = [4.0*((81+82)/float(num_robots))/4.0]*num_robots
+    # mc = [2.0*((81+82)/float(num_robots))/4.0]*num_robots
     print(mc)
 
      # for mc in max_cost:
-    solution, objective, _ = tsu.solve_problem(ctop_solver, cost, num_robots=num_robots, cost_max=mc, output_flag=1, time_limit=360000, mip_gap=0.05)
+    solution, objective, _ = tsu.solve_problem(ctop_solver, cost, num_robots=num_robots, cost_max=mc, output_flag=1, time_limit=360000, mip_gap=0.015)
 
         # util = 0
         # print(solution)
@@ -395,9 +396,29 @@ def main():
     # solution = [ [0, 15, 24, 34, 43, 82],  [0, 13, 57, 66, 75, 82],  [0, 25, 44, 53, 62, 82],  [0, 5, 14, 23, 22, 31, 82],  [0, 7, 17, 26, 82],  [0, 29, 37, 47, 82],  [0, 42, 51, 61, 70, 82],  [0, 21, 30, 48, 76, 82],  [0, 32, 41, 50, 59, 68, 77, 82],  [0, 3, 2, 11, 20, 39, 49, 82]]
     # objective = 0
     # solution = [ [0, 5, 14, 13, 22, 31, 30, 39, 40, 41, 42, 51, 52, 44, 53, 62, 71, 70, 69, 60, 59, 50, 49, 58, 67, 68, 77, 82],  [0, 6, 7, 16, 15, 24, 23, 32, 33, 34, 35, 26, 17, 8, 9, 18, 27, 36, 45, 54, 63, 72, 81, 80, 79, 78, 82],  [0, 4, 3, 12, 11, 2, 1, 10, 19, 20, 29, 28, 37, 47, 46, 55, 56, 48, 57, 66, 65, 64, 73, 74, 75, 76, 82]]
+    # solution = [[0, 5, 14, 23, 22, 31, 40, 41, 42, 51, 60, 59, 68, 77, 82], [0, 4, 12, 11, 20, 29, 38, 47, 48, 57, 65, 75, 76, 82],[0, 6, 16, 17, 18, 26, 35, 44, 53, 62, 71, 70, 78, 82]]
+    # visited = solution[0][:]+solution[1][:]+solution[2][:]
+    # util = 0
+    # print(solution)
+    # solution = [[0, 13, 49, 67, 82], [0, 15, 33, 51, 82], [0, 23, 41, 69, 82]]
+    # visited = solution[0][:] + solution[1][:] + solution[2][:]
+    # utils = []
+    # for n in range(len(solution)):
+    #     util = 0
+    #     for i in solution[n]:
+    #         extras = 0
+    #         if i != 0 and i != solution[n][len(solution[n])-1]:
+    #             for j in range(cost.shape[0]):
+    #                 if j != i and j not in visited and j != 0 and j != solution[n][len(solution[n])-1] and cost[i,j] < 2:
+    #                     extras += np.e**(-2.30258509299*cost[i,j])
+    #             util += 1 + extras
+    #     utils.append(util)
+    #     print("Utility: {0}".format(util))
+    # print(sum(utils))
     # objective = 0
     fig, ax = tsu.plot_problem(nodes, solution, objective)
-    plt.show()
+    # fig.savefig("/tmp/fig.png", dpi=300)
+    # plt.show()
 
     nodes = []
     nodes.append([0,0])
@@ -412,7 +433,27 @@ def main():
     print(len(nodes))
     nodes = np.array(nodes)
     fig, ax = tsu.plot_problem(nodes, [], objective)
-    plt.show()
+    # plt.show()
 
+    nodes = np.array(
+        [[5, 5], [6, 3], [6, 4], [6, 5], [6, 6], [6, 7], [7, 3], [7, 4], [7, 5], [7, 6], [7, 7], [8, 3], [8, 4], [8, 5],
+         [8, 6], [8, 7], [9, 3], [9, 4], [9, 5], [9, 6], [9, 7], [10, 3], [10, 4], [10, 5], [10, 6], [10, 7], [11, 5]])
+    fig, ax = tsu.plot_problem(nodes, [], objective)
+    # plt.show()
+    nodes = np.array([[0,0], [6,3], [6,4], [6,5], [6,6], [6,7], [7,3], [7,4], [7,5], [7,6], [7,7], [8,3], [8,4], [8,5], [8,6], [8,7], [9,3], [9,4], [9,5], [9,6], [9,7], [10,3], [10,4], [10,5], [10,6], [10,7], [6,-7], [6,-6], [6,-5], [6,-4], [6,-3], [7,-7], [7,-6], [7,-5], [7,-4], [7,-3], [8,-7], [8,-6], [8,-5], [8,-4], [8,-3], [9,-7], [9,-6], [9,-5], [9,-4], [9,-3], [10,-7], [10,-6], [10,-5], [10,-4], [10,-3], [16,0]])
+#     solution = [[0, 28, 31, 30, 29, 34, 39, 44, 49, 50, 45, 41, 40, 35, 36, 37, 32, 33, 38, 42, 43, 48, 53, 52, 47, 46, 51, 54, 55]
+# ,[0, 1, 4, 3, 2, 7, 12, 17, 22, 23, 18, 13, 8, 9, 14, 15, 10, 5, 6, 11, 16, 21, 26, 25, 20, 19, 24, 27, 55]
+# ]
+#     solution = [[0, 1, 2, 3, 4, 5, 10, 15, 20, 25, 24, 19, 14, 9, 8, 7, 6, 11, 12, 13, 18, 23, 22, 17, 16, 21, 51]
+# ,[0, 30, 35, 40, 45, 44, 39, 38, 37, 32, 33, 34, 29, 28, 27, 26, 31, 36, 41, 46, 47, 42, 43, 48, 49, 50, 51]
+# ]
+    solution = [[0, 1, 2, 3, 8, 13, 19, 14, 9, 4, 5, 10, 15, 20, 25, 24, 23, 18, 17, 12, 6, 11, 16, 22, 21, 51]
+,[0, 30, 35, 40, 45, 44, 38, 37, 32, 33, 39, 34, 29, 28, 27, 26, 31, 36, 41, 46, 42, 43, 47, 48, 49, 50, 51]
+]
+    fig, ax = tsu.plot_problem(nodes, solution, objective)
+    solution = [ [0, 1, 6, 7, 2, 3, 8, 9, 4, 5, 10, 15, 14, 19, 20, 25, 24, 23, 22, 18, 13, 12, 11, 16, 21, 51],  [0, 30, 35, 40, 39, 34, 29, 28, 27, 26, 31, 36, 32, 33, 38, 37, 42, 41, 46, 47, 48, 49, 44, 45, 50, 51]]
+
+    fig, ax = tsu.plot_problem(nodes, solution, objective)
+    plt.show()
 if __name__ == '__main__':
     main()
